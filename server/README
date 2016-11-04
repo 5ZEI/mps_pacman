@@ -1,0 +1,9 @@
+This node server uses ES6 syntax, so babel-cli is required for it to
+compile and change the files to known javascript syntax.
+
+First of all you need to run "npm install" for all the packages to install.
+
+After that, to get this to work, use "npm run build-dev" (a script made to make babel compile
+and watch for changes) or "npm run build" (only compiles once).
+
+After that, you can run "node dist/index.js".
