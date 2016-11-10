@@ -51,23 +51,28 @@ wsServer.on('request', function (request) {
     return;
   }
 
-  // TODO: Change this to null instead of echo-protocol
-  var connection = request.accept( /*null*/'echo-protocol', request.origin);
+  var connection = request.accept(null, request.origin);
 
   // Store a reference to the connection using an incrementing ID
   connection.id = connectionIDCounter++;
   connections[connection.id] = connection;
-
-  // Now you can access the connection with connections[id] and find out
-  // the id for a connection with connection.id
 
   console.log(new Date() + ' Connection ID ' + connection.id + ' accepted.');
 
   // on message received
   connection.on('message', function (message) {
     if (message.type === 'utf8') {
-      console.log('Received from client: ' + message.utf8Data);
-      connection.sendUTF(message.utf8Data);
+      var messageData = message.utf8Data;
+      // regex for username message: username#<username>
+      var parsed = messageData.split('#');
+
+      // save the username in connections
+      if (parsed.length === 2 && parsed[0] === 'username') {
+        connections[connection.id].username = parsed[1];
+      }
+
+      console.log('Received from client: ' + message.utf8Data + " [username, id]: " + connection.username + connection.id);
+      connection.sendUTF("SALUT " + connection.username);
     } else if (message.type === 'binary') {
       console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
       connection.sendBytes(message.binaryData);
@@ -76,7 +81,7 @@ wsServer.on('request', function (request) {
 
   // on connection closed
   connection.on('close', function (reasonCode, description) {
-    console.log(new Date() + ' Peer ' + connection.remoteAddress + ' disconnected. ' + "Connection ID: " + connection.id);
+    console.log(new Date() + ' Peer ' + connection.remoteAddress + ' disconnected. ' + "[id, username]: " + connection.id + connection.username);
 
     // Make sure to remove closed connections from the global pool
     delete connections[connection.id];
@@ -117,7 +122,7 @@ client.on('connect', function (connection) {
   });
 
   connection.on('close', function () {
-    console.log('echo-protocol Connection Closed');
+    console.log('Connection Closed');
   });
 
   connection.on('message', function (message) {
@@ -130,10 +135,20 @@ client.on('connect', function (connection) {
     if (connection.connected) {
       var number = Math.round(Math.random() * 0xFFFFFF);
       connection.sendUTF(number.toString());
-      setTimeout(sendNumber, 1000);
+      // setTimeout(sendNumber, 1000);
     }
   }
+
+  // function to send your username. Must be sent before any other request!
+  function sendUsername() {
+    if (connection.connected) {
+      var username = 'username#Marcel';
+      connection.sendUTF(username);
+    }
+  }
+
+  sendUsername();
   sendNumber();
 });
 
-client.connect('ws://localhost:8080/', 'echo-protocol');
+client.connect('ws://localhost:8080/', null);
