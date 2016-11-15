@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="ISO-8859-1">
+		<title>Lobby</title>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	  	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+	  	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+		<script>
+		function goBack() {
+			window.history.back()
+		}
+		</script>
+		<style>
+		table, th {
+			border: 1px solid blue;
+		}
+		</style>
+
+	  	<link rel="stylesheet" type="text/css" href="../css/lobby.css">
+	</head>
+	<body>
+			<form>
+				<div class="row" id="row4">
+					<div class="col-sm-12">
+						<button onclick="goBack()" class="btn btn-default" align="left">BACK</button>
+					</div>
+				</div>
+				<div class="row" id="row1">
+				 	<div class="col-sm-12">
+				 		<label id="title">LOBBY</label>
+				 	</div>
+				</div>
+
+				<div class="row" id="row2">
+					<div class="col-sm-12">
+						<label id="wait">Waiting for players...</label>
+					</div>
+				</div>
+				
+				<div class="row" id="row3">
+					<table>
+						<tr>
+							<th>User1</th>
+						</tr>
+						<tr>
+							<th>User2</th>
+						</tr>
+						<tr>
+							<th>User3</th>
+						</tr>
+					</table>
+				</div>
+			</form>
+	</body>
+</html>
