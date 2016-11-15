@@ -1,20 +1,22 @@
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /**
  *
  */
-// var ws = require ('websocket').client;
-
 $(document).ready(function(){
+	var ws = new WebSocket('ws://localhost:3000');
+
 	var canvas=document.getElementById("canvas");
 	var ctx=canvas.getContext("2d");
+	// var map
 
-	var speed = 0.5;
-	var precision = 0.6;
+	var speed = 0.2;
+	var precision = 0.2;
 	var space = 4;
 	var between = 10;
 	var raf;
 	var object = {
-			height: 28,
-			width: 28,
+			height: 30,
+			width: 30,
 			x: 0.1,
 			y: 0.1,
 	}
@@ -617,8 +619,8 @@ $(document).ready(function(){
 		return map;
 	}
 
-	var map = generateMap1(20, 20, 16, 16);
-	//var map = generateMap2(10, 10, 36, 36);
+	// var map = generateMap1(20, 20, 16, 16);
+	var map = generateMap2(10, 10, 36, 36);
 	var direction;
 	var lastPressed;
 	var changed = false;
@@ -820,7 +822,7 @@ $(document).ready(function(){
 		// }
 
 		base_image = new Image();
-		base_image.src = '../images/pac_converted.jpg';
+		base_image.src = '../images/pac.jpg';
 		base_image.onload = function(){
 			ctx.drawImage(base_image, object.x, object.y);
 		}
@@ -833,3 +835,4 @@ $(document).ready(function(){
 		}
 	}
 });
+},{}]},{},[1]);

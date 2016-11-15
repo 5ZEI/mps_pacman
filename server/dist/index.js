@@ -4,6 +4,10 @@ var _express = require('express');
 
 var _express2 = _interopRequireDefault(_express);
 
+var _bodyParser = require('body-parser');
+
+var _bodyParser2 = _interopRequireDefault(_bodyParser);
+
 var _expressWs = require('express-ws');
 
 var _expressWs2 = _interopRequireDefault(_expressWs);
@@ -14,9 +18,9 @@ var _path2 = _interopRequireDefault(_path);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var app = (0, _express2.default)(); // import {server as ws} from 'websocket'
+// import {server as ws} from 'websocket'
 // import http from 'http';
-
+var app = (0, _express2.default)();
 var expressWs = (0, _expressWs2.default)(app);
 var clientPath = '';
 var htmlPaths = void 0;
@@ -25,7 +29,6 @@ var stop = false;
 __dirname.split('/').map(function (part) {
   if (part === 'server') {
     stop = true;
-    console.log(clientPath);
   } else if (!stop) {
     clientPath += part + '/';
   }
@@ -34,11 +37,18 @@ __dirname.split('/').map(function (part) {
 clientPath += 'client/';
 htmlPaths = clientPath + 'html/';
 
+// express configurations
 app.use(_express2.default.static(clientPath));
+app.use(_bodyParser2.default.urlencoded({ extended: false }));
+app.use(_bodyParser2.default.json());
 
 app.use(function (req, res, next) {
   return next();
 });
+
+// globals for storing client sessions
+var connections = {};
+var connectionIDCounter = 0;
 
 app.get('/', function (req, res, next) {
   console.log('get route', req.url, __dirname);
@@ -48,11 +58,43 @@ app.get('/', function (req, res, next) {
   // res.end();
 });
 
+// put logic here to detect whether the specified origin is allowed.
+function originIsAllowed(origin) {
+  return true;
+}
+
 app.ws('/', function (ws, req) {
   ws.on('message', function (msg) {
     console.log(msg);
   });
-  console.log('socket', req.testing);
+});
+
+app.post('/game', function (req, res, next) {
+  console.log(req.body);
+});
+
+app.get('/game', function (req, res, next) {
+  console.log('get route', req.url, __dirname);
+  // res.writeHead(200, {"Content-Type": "text/plain"});
+  // res.end("Hello World\n");
+  res.sendFile(_path2.default.join(htmlPaths + 'index.html'));
+  // res.end();
+});
+
+app.ws('/game', function (ws, req) {
+  ws.id = connectionIDCounter++;
+  connections[ws.id] = ws;
+
+  ws.on('message', function (msg) {
+    console.log(msg);
+  });
+
+  ws.on('close', function (reasonCode, description) {
+    console.log(new Date() + ' Peer ' + ws.remoteAddress + ' disconnected. ' + "[id, username]: " + ws.id + ws.username);
+
+    // Make sure to remove closed connections from the global pool
+    delete connections[ws.id];
+  });
 });
 
 app.listen(3000);

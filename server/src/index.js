@@ -1,6 +1,7 @@
 // import {server as ws} from 'websocket'
 // import http from 'http';
 import express from 'express';
+import bodyParser from 'body-parser';
 import ews from 'express-ws';
 import path from 'path';
 
@@ -13,7 +14,6 @@ let stop = false;
 __dirname.split('/').map( (part) => {
   if (part === 'server') {
     stop = true;
-    console.log(clientPath);
   }
   else if (!stop) {
     clientPath += part + '/';
@@ -23,11 +23,18 @@ __dirname.split('/').map( (part) => {
 clientPath += 'client/';
 htmlPaths = clientPath + 'html/';
 
+// express configurations
 app.use(express.static(clientPath));
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 app.use(function (req, res, next) {
   return next();
 });
+
+// globals for storing client sessions
+let connections = {};
+let connectionIDCounter = 0;
 
 app.get('/', function(req, res, next){
   console.log('get route', req.url, __dirname);
@@ -37,11 +44,44 @@ app.get('/', function(req, res, next){
   // res.end();
 });
 
+// put logic here to detect whether the specified origin is allowed.
+function originIsAllowed(origin) {
+  return true;
+}
+
 app.ws('/', function(ws, req) {
   ws.on('message', function(msg) {
     console.log(msg);
   });
-  console.log('socket', req.testing);
+});
+
+app.post('/game', function(req, res, next){
+  console.log(req.body);
+});
+
+app.get('/game', function(req, res, next){
+  console.log('get route', req.url, __dirname);
+  // res.writeHead(200, {"Content-Type": "text/plain"});
+  // res.end("Hello World\n");
+  res.sendFile(path.join(htmlPaths + 'index.html'));
+  // res.end();
+});
+
+app.ws('/game', function(ws, req) {
+  ws.id = connectionIDCounter ++;
+  connections[ws.id] = ws;
+
+  ws.on('message', function(msg) {
+    console.log(msg);
+  });
+
+  ws.on('close', function(reasonCode, description) {
+    console.log((new Date()) + ' Peer ' + ws.remoteAddress + ' disconnected. ' +
+                "[id, username]: " + ws.id + ws.username);
+
+    // Make sure to remove closed connections from the global pool
+    delete connections[ws.id];
+  });
 });
 
 app.listen(3000);
