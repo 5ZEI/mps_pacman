@@ -1,21 +1,21 @@
 /**
- * 
+ *
  */
 
 $(document).ready(function(){
 	var canvas=document.getElementById("canvas");
 	var ctx=canvas.getContext("2d");
 
-	var speed = 5;
-	var precision = 2;
+	var speed = 0.2;
+	var precision = 0.1;
 	var space = 4;
 	var between = 10;
 	var raf;
 	var object = {
-	    height: 24,
-	    width: 24,
-	    x: 1,
-	    y: 1,
+			height: 30,
+			width: 30,
+			x: 0.1,
+			y: 0.1,
 	}
 
 	function generateMap1(height, width, x, y){
@@ -608,11 +608,11 @@ $(document).ready(function(){
 
 		return map;
 	}
-		
+
 	var map = generateMap1(20, 20, 16, 16);
-	//var map = generateMap2(10, 10, 36, 36);
-	var xs = 0;
-	var ys = 0;
+	// var map = generateMap2(10, 10, 36, 36);
+	var direction;
+	// var lastPressed;
 	//renderObject();
 
 	function upCollision(object, map, precision){
@@ -635,7 +635,7 @@ $(document).ready(function(){
 			return true;
 		}
 	}
-	
+
 	function rightCollision(object, map, precision){
 
 
@@ -657,7 +657,7 @@ $(document).ready(function(){
 			return true;
 		}
 	}
-	
+
 	function leftCollision(object, map, precision){
 
 		if(object.x <= 0){
@@ -678,9 +678,8 @@ $(document).ready(function(){
 			return true;
 		}
 	}
-	
-	function downCollision(object, map, precision){
 
+	function downCollision(object, map, precision){
 		if(object.y <= 0){
 			return true;
 		}
@@ -700,79 +699,115 @@ $(document).ready(function(){
 		}
 	}
 
-	document.body.onkeydown = function(event){
-	    switch(event.keyCode){
-	        case 98: // 2
-	         	//if(!upCollision(object, map, precision)){
-		     //        console.log("Loveste perete sus");
-		     //        xs = 0;
-		     //        ys = 0;
-	    		// }else{
-	    			// object.x += 0;
-		      //       object.y += speed;
-		            xs = 0;
-		            ys = speed;
-
-	    		//}
+	function setDirection(direction) {
+		var xs = 0;
+		var ys = 0;
+		switch (direction) {
+			case 'up':
+				xs = 0;
+				ys = -speed;
 				break;
-	        case 100: // 4
-	        	//if(!leftCollision(object, map, precision)){
-	        	// 	console.log("Loveste perete dreapta");
-		        // }else{
-		        // 	object.x -= speed;
-			       //  object.y += 0; 
-			        xs = -speed;
-		            ys = 0;
-		        //}
-	        	break;
-	        case 102: // 6
-	        	 //if(!rightCollision(object, map, precision)){
-	        	// 	console.log("Loveste perete stanga");
-		        // }else{
-		        // 	object.x += speed;
-			       //  object.y += 0;
-			        xs = speed;
-		            ys = 0;
-		       	//}
-	        	break;
-	        case 104: // 8
-	       		 //if(!downCollision(object, map, precision)){
-	        	// 	console.log("Loveste perete jos");
-		        // }else{
-		        // 	object.x += 0;
-			       //  object.y -= speed; 
-			        xs = 0;
-		            ys = -speed;
-		        //}
-	        	break;
-	    }
-	    //renderObject();
+			case 'down':
+				xs = 0;
+				ys = speed;
+				break;
+			case 'left':
+				xs = -speed;
+				ys = 0;
+				break;
+			case 'right':
+				xs = speed;
+				ys = 0;
+				break;
+		}
+		return {'xs': xs, 'ys': ys};
 	}
 
-	setInterval(renderObject, 75);
+	function checkForCollision(player, direction) {
+		var directions = setDirection(direction);
+		player.x += directions.xs;
+		player.y += directions.ys;
+		var colided = false;
+
+		if (upCollision(player, map, precision) || downCollision(player, map, precision) ||
+				leftCollision(player, map, precision) || rightCollision(player, map, precision)) {
+			colided = true;
+			player.x -= directions.xs;
+			player.y -= directions.ys;
+		}
+		colided && console.log(colided);
+		return colided;
+	}
+
+	document.body.onkeydown = function(event){
+		switch(event.keyCode) {
+			case 98: // 2
+			case 40: // down key
+				if (!checkForCollision(object, 'down')) {
+					// lastPressed = direction;
+					direction = 'down';
+				}
+				break;
+			case 100: // 4
+			case 37: //left key
+				if (!checkForCollision(object, 'left')) {
+					// lastPressed = direction;
+					direction = 'left';
+				}
+				break;
+			case 102: // 6
+			case 39: // right key
+				if (!checkForCollision(object, 'right')) {
+					// lastPressed = direction;
+					direction = 'right';
+				}
+				break;
+			case 104: // 8
+			case 38: // up key
+				if (!checkForCollision(object, 'up')) {
+					// lastPressed = direction;
+					direction = 'up';
+				}
+				break;
+		}
+		//renderObject();
+	}
+
+	setInterval(renderObject, 1);
 
 	function renderObject(){
 		ctx.clearRect(0,0,canvas.width,canvas.height);
 
-		object.x += xs;
-		object.y += ys;
+		var directions = setDirection(direction);
+		object.x += directions.xs;
+		object.y += directions.ys;
 
-		if(upCollision(object, map, precision) || downCollision(object, map, precision) ||
-			leftCollision(object, map, precision) || rightCollision(object, map, precision)){
-				object.x -= xs;
-				object.y -= ys;
+		if (upCollision(object, map, precision) || downCollision(object, map, precision)) {
+			object.x -= directions.xs;
+			object.y -= directions.ys;
+			// if (lastPressed === 'left' || lastPressed === 'right') {
+				// direction = lastPressed;
+			// }
+		}
+
+		if (leftCollision(object, map, precision) || rightCollision(object, map, precision)) {
+			object.x -= directions.xs;
+			object.y -= directions.ys;
+			// if (lastPressed === 'up' || lastPressed === 'down') {
+				// direction = lastPressed;
+			// }
 		}
 
 		base_image = new Image();
-		base_image.src = '../images/pac1.ico';
+		base_image.src = '../images/pac.jpg';
 		base_image.onload = function(){
 			ctx.drawImage(base_image, object.x, object.y);
 		}
-	    //ctx.clearRect(0,0,canvas.width,canvas.height);
-	    //(wall1.x, wall1.y, wall1.width, wall1.height);
-	    //ctx.fillRect(wall1.x, wall1.y, wall1.width, wall1.height);
+		//ctx.clearRect(0,0,canvas.width,canvas.height);
+		//(wall1.x, wall1.y, wall1.width, wall1.height);
+		//ctx.fillRect(wall1.x, wall1.y, wall1.width, wall1.height);
 
-	    for(var i = 0; i < map.length; i++){
+		for(var i = 0; i < map.length; i++){
 			ctx.fillRect(map[i].x, map[i].y, map[i].width, map[i].height);
 		}
 	}
