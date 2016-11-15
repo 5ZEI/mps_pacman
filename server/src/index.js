@@ -1,150 +1,201 @@
-import {server as ws} from 'websocket'
-import http from 'http';
+// import {server as ws} from 'websocket'
+// import http from 'http';
+import express from 'express';
+import ews from 'express-ws';
+import path from 'path';
+
+const app = express();
+const expressWs = ews(app);
+let clientPath = '';
+let htmlPaths;
+let stop = false;
+
+__dirname.split('/').map( (part) => {
+  if (part === 'server') {
+    stop = true;
+    console.log(clientPath);
+  }
+  else if (!stop) {
+    clientPath += part + '/';
+  }
+})
+
+clientPath += 'client/';
+htmlPaths = clientPath + 'html/';
+
+app.use(express.static(clientPath));
+
+app.use(function (req, res, next) {
+  return next();
+});
+
+app.get('/', function(req, res, next){
+  console.log('get route', req.url, __dirname);
+  // res.writeHead(200, {"Content-Type": "text/plain"});
+  // res.end("Hello World\n");
+  res.sendFile(path.join(htmlPaths + 'start.html'));
+  // res.end();
+});
+
+app.ws('/', function(ws, req) {
+  ws.on('message', function(msg) {
+    console.log(msg);
+  });
+  console.log('socket', req.testing);
+});
+
+app.listen(3000);
 
 // FOR TESTING COMMUNICATION PURPOSES
-import {client as wsClient} from 'websocket';
+// import {client as wsClient} from 'websocket';
 
-// http server creation
-const server = http.createServer(function(request, response) {
-  console.log((new Date()) + ' Received request for ' + request.url);
-  response.writeHead(200, {"Content-Type": "text/plain"});
-  response.end("Hello World\n");
-});
+// Express init
+// const app = express();
 
-// open port 8080 for listening
-server.listen(8080, function() {
-  console.log((new Date()) + ' Server is listening on port 8080');
-});
+// app.use(function(req, res) {
+//   console.log((new Date()) + ' Received request for ' + req.url);
+//   res.writeHead(200, {"Content-Type": "text/plain"});
+//   res.end("Hello World\n");
+// });
 
-// open websocket server
-const wsServer = new ws({
-  httpServer: server,
-  // You should not use autoAcceptConnections for production
-  // applications, as it defeats all standard cross-origin protection
-  // facilities built into the protocol and the browser.  You should
-  // *always* verify the connection's origin and decide whether or not
-  // to accept it.
-  autoAcceptConnections: false
-});
+// // http server creation
+// const server = http.createServer(app);
 
-function originIsAllowed(origin) {
-  // put logic here to detect whether the specified origin is allowed.
-  return true;
-}
+// // open port 8080 for listening
+// server.listen(8080, function() {
+//   console.log((new Date()) + ' Server is listening on port 8080');
+// });
 
-// globals for storing client sessions
-let connections = {};
-let connectionIDCounter = 0;
+// // open websocket server
+// const wsServer = new ws({
+//   httpServer: server,
+//   // You should not use autoAcceptConnections for production
+//   // applications, as it defeats all standard cross-origin protection
+//   // facilities built into the protocol and the browser.  You should
+//   // *always* verify the connection's origin and decide whether or not
+//   // to accept it.
+//   autoAcceptConnections: false,
+//   path: "/"
+// });
 
-wsServer.on('request', function(request) {
-  if (!originIsAllowed(request.origin)) {
-    // Make sure we only accept requests from an allowed origin
-    request.reject();
-    console.log((new Date()) + ' Connection from origin ' + request.origin + ' rejected.');
-    return;
-  }
+// function originIsAllowed(origin) {
+//   // put logic here to detect whether the specified origin is allowed.
+//   return true;
+// }
 
-  let connection = request.accept(null, request.origin);
+// // globals for storing client sessions
+// let connections = {};
+// let connectionIDCounter = 0;
 
-  // Store a reference to the connection using an incrementing ID
-  connection.id = connectionIDCounter ++;
-  connections[connection.id] = connection;
+// wsServer.on('request', function(request) {
+//   if (!originIsAllowed(request.origin)) {
+//     // Make sure we only accept requests from an allowed origin
+//     request.reject();
+//     console.log((new Date()) + ' Connection from origin ' + request.origin + ' rejected.');
+//     return;
+//   }
 
-  console.log((new Date()) + ' Connection ID ' + connection.id + ' accepted.');
+//   let connection = request.accept(null, request.origin);
 
-  // on message received
-  connection.on('message', function(message) {
-    if (message.type === 'utf8') {
-      const messageData = message.utf8Data;
-      // regex for username message: username#<username>
-      const parsed = messageData.split('#');
+//   // Store a reference to the connection using an incrementing ID
+//   connection.id = connectionIDCounter ++;
+//   connections[connection.id] = connection;
 
-      // save the username in connections
-      if (parsed.length === 2 && parsed[0] === 'username') {
-        connections[connection.id].username = parsed[1];
-      }
+//   console.log((new Date()) + ' Connection ID ' + connection.id + ' accepted.');
 
-      console.log('Received from client: ' + message.utf8Data + " [username, id]: " + connection.username + connection.id);
-      connection.sendUTF("SALUT " + connection.username);
-    }
-    else if (message.type === 'binary') {
-      console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
-      connection.sendBytes(message.binaryData);
-    }
-  });
+//   // on message received
+//   connection.on('message', function(message) {
+//     if (message.type === 'utf8') {
+//       const messageData = message.utf8Data;
+//       // regex for username message: username#<username>
+//       const parsed = messageData.split('#');
 
-  // on connection closed
-  connection.on('close', function(reasonCode, description) {
-    console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected. ' +
-                "[id, username]: " + connection.id + connection.username);
+//       // save the username in connections
+//       if (parsed.length === 2 && parsed[0] === 'username') {
+//         connections[connection.id].username = parsed[1];
+//       }
 
-    // Make sure to remove closed connections from the global pool
-    delete connections[connection.id];
-  });
-});
+//       console.log('Received from client: ' + message.utf8Data + " [username, id]: " + connection.username + connection.id);
+//       connection.sendUTF("SALUT " + connection.username);
+//     }
+//     else if (message.type === 'binary') {
+//       console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
+//       connection.sendBytes(message.binaryData);
+//     }
+//   });
 
-// Broadcast to all open connections
-function broadcast(data) {
-  Object.keys(connections).forEach(function(key) {
-    const connection = connections[key];
-    if (connection.connected) {
-      connection.send(data);
-    }
-  });
-}
+//   // on connection closed
+//   connection.on('close', function(reasonCode, description) {
+//     console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected. ' +
+//                 "[id, username]: " + connection.id + connection.username);
 
-// Send a message to a connection by its connectionID
-function sendToConnectionId(connectionID, data) {
-  var connection = connections[connectionID];
-  if (connection && connection.connected) {
-    connection.send(data);
-  }
-}
+//     // Make sure to remove closed connections from the global pool
+//     delete connections[connection.id];
+//   });
+// });
+
+// // Broadcast to all open connections
+// function broadcast(data) {
+//   Object.keys(connections).forEach(function(key) {
+//     const connection = connections[key];
+//     if (connection.connected) {
+//       connection.send(data);
+//     }
+//   });
+// }
+
+// // Send a message to a connection by its connectionID
+// function sendToConnectionId(connectionID, data) {
+//   var connection = connections[connectionID];
+//   if (connection && connection.connected) {
+//     connection.send(data);
+//   }
+// }
 
 
 // TESTING COMMUNICATION
 
-const client = new wsClient();
+// const client = new wsClient();
 
-client.on('connectFailed', function(error) {
-  console.log('Connect Error: ' + error.toString());
-});
+// client.on('connectFailed', function(error) {
+//   console.log('Connect Error: ' + error.toString());
+// });
 
-client.on('connect', function(connection) {
-  console.log('WebSocket Client Connected');
+// client.on('connect', function(connection) {
+//   console.log('WebSocket Client Connected');
 
-  connection.on('error', function(error) {
-    console.log("Connection Error: " + error.toString());
-  });
+//   connection.on('error', function(error) {
+//     console.log("Connection Error: " + error.toString());
+//   });
 
-  connection.on('close', function() {
-    console.log('Connection Closed');
-  });
+//   connection.on('close', function() {
+//     console.log('Connection Closed');
+//   });
 
-  connection.on('message', function(message) {
-    if (message.type === 'utf8') {
-      console.log("Received from server: '" + message.utf8Data + "'");
-    }
-  });
+//   connection.on('message', function(message) {
+//     if (message.type === 'utf8') {
+//       console.log("Received from server: '" + message.utf8Data + "'");
+//     }
+//   });
 
-  function sendNumber() {
-    if (connection.connected) {
-      var number = Math.round(Math.random() * 0xFFFFFF);
-      connection.sendUTF(number.toString());
-      // setTimeout(sendNumber, 1000);
-    }
-  }
+//   function sendNumber() {
+//     if (connection.connected) {
+//       var number = Math.round(Math.random() * 0xFFFFFF);
+//       connection.sendUTF(number.toString());
+//       // setTimeout(sendNumber, 1000);
+//     }
+//   }
 
-  // function to send your username. Must be sent before any other request!
-  function sendUsername() {
-    if (connection.connected) {
-      const username = 'username#Marcel';
-      connection.sendUTF(username);
-    }
-  }
+//   // function to send your username. Must be sent before any other request!
+//   function sendUsername() {
+//     if (connection.connected) {
+//       const username = 'username#Marcel';
+//       connection.sendUTF(username);
+//     }
+//   }
 
-  sendUsername();
-  sendNumber();
-});
+//   sendUsername();
+//   sendNumber();
+// });
 
-client.connect('ws://localhost:8080/', null);
+// client.connect('ws://localhost:8080/', null);

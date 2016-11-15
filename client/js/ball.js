@@ -1,6 +1,7 @@
 /**
  *
  */
+// var ws = require ('websocket').client;
 
 $(document).ready(function(){
 	var canvas=document.getElementById("canvas");
