@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="ISO-8859-1">
+		<title>GameOver</title>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	  	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+	  	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+		<script>
+		function goBack() {
+			window.history.back().back()
+		}
+		</script>
+		<style>
+		table, th, td {
+			border: 2px solid blue;
+			text-align: center;
+		}
+		</style>
+
+	  	<link rel="stylesheet" type="text/css" href="../css/gameover.css">
+	</head>
+	<body>
+			<form>
+				<div class="row" id="row4">
+					<div class="col-sm-12">
+						<button onclick="goBack()" class="btn btn-default" align="left">PLAY AGAIN?</button>
+					</div>
+				</div>
+				<div class="row" id="row1">
+				 	<div class="col-sm-12">
+				 		<label id="title">SCORE</label>
+				 	</div>
+				</div>
+
+				<div class="row" id="row2">
+					<div class="col-sm-12">
+						<label id="wait">Total game time : 3 min </label>
+					</div>
+				</div>
+				
+				<div class="row" id="row3">
+					<table>
+						<tr>
+							<th>Username</th>
+							<th>Score</th>
+						</tr>
+						<tr>
+							<th>User1</th>
+							<th>70</th>
+						</tr>
+						<tr>
+							<th>User2</th>
+							<th>20</th>
+						</tr>
+						<tr>
+							<th>User3</th>
+							<th>10</th>
+						</tr>
+					</table>
+				</div>
+			</form>
+	</body>
+</html>
