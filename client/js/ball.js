@@ -7,18 +7,17 @@ $(document).ready(function(){
 	var canvas=document.getElementById("canvas");
 	var ctx=canvas.getContext("2d");
 
-	var speed = 0.2;
-	var precision = 0.1;
+	var speed = 0.5;
+	var precision = 0.6;
 	var space = 4;
 	var between = 10;
 	var raf;
 	var object = {
-			height: 30,
-			width: 30,
+			height: 28,
+			width: 28,
 			x: 0.1,
 			y: 0.1,
 	}
-
 	function generateMap1(height, width, x, y){
 		var map = new Array();
 		map[0] = {
@@ -403,6 +402,7 @@ $(document).ready(function(){
 	}
 
 	function generateMap2(height, width, x, y){
+		document.getElementById("canvas").style.height = 560;
 		var map = new Array();
 		map[0] = {
 			height: height,
@@ -531,7 +531,7 @@ $(document).ready(function(){
 		};
 
 		map[18] = {
-			height: height * 14,
+			height: height * 20,
 			width: width,
 			x: x + between,
 			y: 11*y - 3*between,
@@ -552,7 +552,7 @@ $(document).ready(function(){
 		};
 
 		map[21] = {
-			height: height * 9,
+			height: height * 9 - 4,
 			width: width,
 			x: 12 * x + between - 8,
 			y: 10*y,
@@ -562,13 +562,13 @@ $(document).ready(function(){
 			height: height,
 			width: width * 6,
 			x: 2 * x + 3*between,
-			y: 13*y - 3*between,
+			y: 14*y - between,
 		};
 
 		map[23] = {
 			height: height,
-			width: width * 15,
-			x: 6*x + between - 4,
+			width: width * 28,
+			x: 3*x + between - 2*between + 4,
 			y: 13*y - 3*between,
 		};
 
@@ -583,35 +583,42 @@ $(document).ready(function(){
 			height: height * 7,
 			width: width,
 			x: 4*x + 2 * between - 4,
-			y: 13*y - 3*between,
+			y: 15*y - 4*between - 6,
 		};
 
 		map[26] = {
 			height: height * 6,
 			width: width,
 			x: 2 * x + 3*between,
-			y: 15*y - 4*between,
+			y: 16*y - 2*between,
 		};
 
 		map[27] = {
 			height: height,
 			width: width * 14,
 			x: 4*x + 2 * between - 4,
-			y: 15*y - 4*between,
+			y: 16*y - 2*between,
 		};
 
 		map[28] = {
 			height: height,
 			width: width * 14 - 4,
 			x: 10 * x + 4,
-			y: 15*y - 4*between,
+			y: 16*y - 2*between,
+		};
+
+		map[29] = {
+			height: height,
+			width: width * 28,
+			x: 6 * x + 4,
+			y: 14*y - between,
 		};
 
 		return map;
 	}
 
 	var map = generateMap1(20, 20, 16, 16);
-	// var map = generateMap2(10, 10, 36, 36);
+	//var map = generateMap2(10, 10, 36, 36);
 	var direction;
 	var lastPressed;
 	var changed = false;
@@ -619,7 +626,7 @@ $(document).ready(function(){
 
 	function upCollision(object, map, precision){
 
-		if(object.y + object.height >= 560){
+		if(object.y + object.height >= 615){
 			return true;
 		}
 
@@ -813,7 +820,7 @@ $(document).ready(function(){
 		// }
 
 		base_image = new Image();
-		base_image.src = '../images/pac.jpg';
+		base_image.src = '../images/pac_converted.jpg';
 		base_image.onload = function(){
 			ctx.drawImage(base_image, object.x, object.y);
 		}
