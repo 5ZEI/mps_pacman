@@ -612,7 +612,8 @@ $(document).ready(function(){
 	var map = generateMap1(20, 20, 16, 16);
 	// var map = generateMap2(10, 10, 36, 36);
 	var direction;
-	// var lastPressed;
+	var lastPressed;
+	var changed = false;
 	//renderObject();
 
 	function upCollision(object, map, precision){
@@ -735,7 +736,6 @@ $(document).ready(function(){
 			player.x -= directions.xs;
 			player.y -= directions.ys;
 		}
-		colided && console.log(colided);
 		return colided;
 	}
 
@@ -743,31 +743,31 @@ $(document).ready(function(){
 		switch(event.keyCode) {
 			case 98: // 2
 			case 40: // down key
-				if (!checkForCollision(object, 'down')) {
-					// lastPressed = direction;
+				// if (!checkForCollision(object, 'down')) {
+					lastPressed = direction;
 					direction = 'down';
-				}
+				// }
 				break;
 			case 100: // 4
 			case 37: //left key
-				if (!checkForCollision(object, 'left')) {
-					// lastPressed = direction;
+				// if (!checkForCollision(object, 'left')) {
+					lastPressed = direction;
 					direction = 'left';
-				}
+				// }
 				break;
 			case 102: // 6
 			case 39: // right key
-				if (!checkForCollision(object, 'right')) {
-					// lastPressed = direction;
+				// if (!checkForCollision(object, 'right')) {
+					lastPressed = direction;
 					direction = 'right';
-				}
+				// }
 				break;
 			case 104: // 8
 			case 38: // up key
-				if (!checkForCollision(object, 'up')) {
-					// lastPressed = direction;
+				// if (!checkForCollision(object, 'up')) {
+					lastPressed = direction;
 					direction = 'up';
-				}
+				// }
 				break;
 		}
 		//renderObject();
@@ -786,17 +786,30 @@ $(document).ready(function(){
 			object.x -= directions.xs;
 			object.y -= directions.ys;
 			// if (lastPressed === 'left' || lastPressed === 'right') {
-				// direction = lastPressed;
+			// 	var aux = direction;
+			// 	direction = lastPressed;
+			// 	lastPressed = aux;
+			// 	changed = true;
 			// }
 		}
 
-		if (leftCollision(object, map, precision) || rightCollision(object, map, precision)) {
+		else if (leftCollision(object, map, precision) || rightCollision(object, map, precision)) {
 			object.x -= directions.xs;
 			object.y -= directions.ys;
 			// if (lastPressed === 'up' || lastPressed === 'down') {
-				// direction = lastPressed;
+			// 	var aux = direction;
+			// 	direction = lastPressed;
+			// 	lastPressed = aux;
+			// 	changed = true;
 			// }
 		}
+
+		// else if (changed === true && !checkForCollision(object, lastPressed)) {
+		// 	console.log("switching", lastPressed, direction);
+		// 	direction = lastPressed;
+		// 	lastPressed = undefined;
+		// 	changed = false;
+		// }
 
 		base_image = new Image();
 		base_image.src = '../images/pac.jpg';
