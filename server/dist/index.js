@@ -299,15 +299,15 @@ wss.on('request', function (request) {
         if (index > -1) {
           var playersLeft = [];
 
-          delete gamesPlayed[id][index];
+          delete gamesPlayed[id][keys[index]];
 
           if (connection.map === 'map1') {
+            usersReadyMap1--;
             lobbyNamesMap1 = gamesPlayed[id];
           } else if (connection.map === 'map2') {
+            usersReadyMap2--;
             lobbyNamesMap2 = gamesPlayed[id];
           }
-
-          console.log(lobbyNamesMap1, lobbyNamesMap2);
 
           for (var clientId in gamesPlayed[id]) {
             playersLeft.push(gamesPlayed[id][clientId]);
@@ -320,6 +320,7 @@ wss.on('request', function (request) {
           }
 
           delete gamesPlayed[id];
+          break;
         }
       }
     }
