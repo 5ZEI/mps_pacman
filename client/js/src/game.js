@@ -1,27 +1,24 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /**
  *
  */
+import $ from "jquery";
+
 $(document).ready(function(){
-	var ws = new WebSocket('ws://localhost:3000');
+	const canvas=document.getElementById("canvas");
+	const ctx=canvas.getContext("2d");
 
-	var canvas=document.getElementById("canvas");
-	var ctx=canvas.getContext("2d");
-	// var map
-
-	var speed = 0.2;
-	var precision = 0.2;
-	var space = 4;
-	var between = 10;
-	var raf;
-	var object = {
+	const speed = 0.2;
+	const precision = 0.2;
+	const space = 4;
+	const between = 10;
+	const object = {
 			height: 30,
 			width: 30,
 			x: 0.1,
 			y: 0.1,
 	}
 	function generateMap1(height, width, x, y){
-		var map = new Array();
+		let map = new Array();
 		map[0] = {
 			height: height,
 			width: 3 * width,
@@ -405,7 +402,7 @@ $(document).ready(function(){
 
 	function generateMap2(height, width, x, y){
 		document.getElementById("canvas").style.height = 560;
-		var map = new Array();
+		let map = new Array();
 		map[0] = {
 			height: height,
 			width: 15 * width,
@@ -619,11 +616,10 @@ $(document).ready(function(){
 		return map;
 	}
 
-	// var map = generateMap1(20, 20, 16, 16);
-	var map = generateMap2(10, 10, 36, 36);
-	var direction;
-	var lastPressed;
-	var changed = false;
+	// const map = generateMap1(20, 20, 16, 16);
+	console.log(mapChosen);
+	const map = generateMap2(10, 10, 36, 36);
+	let direction;
 	//renderObject();
 
 	function upCollision(object, map, precision){
@@ -632,8 +628,8 @@ $(document).ready(function(){
 			return true;
 		}
 
-		var ok = 1;
-		for(var i = 0; i < map.length; i++){
+		let ok = 1;
+		for(let i = 0; i < map.length; i++){
 			if(object.y + object.height + precision >= map[i].y && object.y + object.height - precision <= map[i].y && object.x + object.width > map[i].x && object.x < map[i].x + map[i].width){
 				ok = 0;
 				break;
@@ -654,8 +650,8 @@ $(document).ready(function(){
 			return true;
 		}
 
-		var ok = 1;
-		for(var i = 0; i < map.length; i++){
+		let ok = 1;
+		for(let i = 0; i < map.length; i++){
 			if(object.x + object.width + precision >= map[i].x && object.x + object.width -precision <= map[i].x && object.y + object.height > map[i].y && object.y < map[i].y + map[i].height){
 				ok = 0;
 				break;
@@ -675,8 +671,8 @@ $(document).ready(function(){
 			return true;
 		}
 
-		var ok = 1;
-		for(var i = 0; i < map.length; i++){
+		let ok = 1;
+		for(let i = 0; i < map.length; i++){
 			if(object.x >= map[i].x + map[i].width - precision && object.x <= map[i].x + map[i].width + precision && object.y + object.height > map[i].y && object.y < map[i].y + map[i].height){
 				ok = 0;
 				break;
@@ -695,8 +691,8 @@ $(document).ready(function(){
 			return true;
 		}
 
-		var ok = 1;
-		for(var i = 0; i < map.length; i++){
+		let ok = 1;
+		for(let i = 0; i < map.length; i++){
 			if(object.y <= map[i].y + map[i].height + precision &&  object.y >= map[i].y + map[i].height - precision && object.x < map[i].x + map[i].width && object.x + object.width > map[i].x){
 				ok = 0;
 				break;
@@ -711,8 +707,8 @@ $(document).ready(function(){
 	}
 
 	function setDirection(direction) {
-		var xs = 0;
-		var ys = 0;
+		let xs = 0;
+		let ys = 0;
 		switch (direction) {
 			case 'up':
 				xs = 0;
@@ -734,50 +730,23 @@ $(document).ready(function(){
 		return {'xs': xs, 'ys': ys};
 	}
 
-	function checkForCollision(player, direction) {
-		var directions = setDirection(direction);
-		player.x += directions.xs;
-		player.y += directions.ys;
-		var colided = false;
-
-		if (upCollision(player, map, precision) || downCollision(player, map, precision) ||
-				leftCollision(player, map, precision) || rightCollision(player, map, precision)) {
-			colided = true;
-			player.x -= directions.xs;
-			player.y -= directions.ys;
-		}
-		return colided;
-	}
-
 	document.body.onkeydown = function(event){
 		switch(event.keyCode) {
 			case 98: // 2
 			case 40: // down key
-				// if (!checkForCollision(object, 'down')) {
-					lastPressed = direction;
-					direction = 'down';
-				// }
+				direction = 'down';
 				break;
 			case 100: // 4
 			case 37: //left key
-				// if (!checkForCollision(object, 'left')) {
-					lastPressed = direction;
-					direction = 'left';
-				// }
+				direction = 'left';
 				break;
 			case 102: // 6
 			case 39: // right key
-				// if (!checkForCollision(object, 'right')) {
-					lastPressed = direction;
-					direction = 'right';
-				// }
+				direction = 'right';
 				break;
 			case 104: // 8
 			case 38: // up key
-				// if (!checkForCollision(object, 'up')) {
-					lastPressed = direction;
-					direction = 'up';
-				// }
+				direction = 'up';
 				break;
 		}
 		//renderObject();
@@ -788,40 +757,21 @@ $(document).ready(function(){
 	function renderObject(){
 		ctx.clearRect(0,0,canvas.width,canvas.height);
 
-		var directions = setDirection(direction);
+		let directions = setDirection(direction);
 		object.x += directions.xs;
 		object.y += directions.ys;
 
 		if (upCollision(object, map, precision) || downCollision(object, map, precision)) {
 			object.x -= directions.xs;
 			object.y -= directions.ys;
-			// if (lastPressed === 'left' || lastPressed === 'right') {
-			// 	var aux = direction;
-			// 	direction = lastPressed;
-			// 	lastPressed = aux;
-			// 	changed = true;
-			// }
 		}
 
 		else if (leftCollision(object, map, precision) || rightCollision(object, map, precision)) {
 			object.x -= directions.xs;
 			object.y -= directions.ys;
-			// if (lastPressed === 'up' || lastPressed === 'down') {
-			// 	var aux = direction;
-			// 	direction = lastPressed;
-			// 	lastPressed = aux;
-			// 	changed = true;
-			// }
 		}
 
-		// else if (changed === true && !checkForCollision(object, lastPressed)) {
-		// 	console.log("switching", lastPressed, direction);
-		// 	direction = lastPressed;
-		// 	lastPressed = undefined;
-		// 	changed = false;
-		// }
-
-		base_image = new Image();
+		const base_image = new Image();
 		base_image.src = '../images/pac.jpg';
 		base_image.onload = function(){
 			ctx.drawImage(base_image, object.x, object.y);
@@ -830,9 +780,8 @@ $(document).ready(function(){
 		//(wall1.x, wall1.y, wall1.width, wall1.height);
 		//ctx.fillRect(wall1.x, wall1.y, wall1.width, wall1.height);
 
-		for(var i = 0; i < map.length; i++){
+		for(let i = 0; i < map.length; i++){
 			ctx.fillRect(map[i].x, map[i].y, map[i].width, map[i].height);
 		}
 	}
 });
-},{}]},{},[1]);
