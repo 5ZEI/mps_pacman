@@ -12,22 +12,33 @@
 			var connected = false;
 			var connection = new WebSocket("ws://localhost:3000");
 			connection.onopen = function(e) {
-        console.log("Connection established!");
+        console.log("Connection to server established!");
 				connected = true;
       };
       connection.onclose = function(e) {
       	connected = false;
-        console.log("Connection closed");
+        console.log("Connection to server closed");
       }
+
+      function leaveLobby(event) {
+				event.preventDefault();
+      	if (connected) {
+      		connection.send("leaveLobby");
+      	}
+				document.getElementById("welcome").style.display = 'initial';
+				document.getElementById("lobby").style.display = 'none';
+      }
+
+      function goBack(event) {
+				event.preventDefault();
+				document.getElementById("welcome").style.display = 'initial';
+				document.getElementById("gameover").style.display = 'none';
+			};
 		</script>
 		<script src="../js/dist/browserified/start.js" type="text/javascript"></script>
 
 		<script>
-			function goBack(event) {
-				event.preventDefault();
-				document.getElementById("welcome").style.display = 'initial';
-				document.getElementById("gameover").style.display = 'none';
-			}
+
 		</script>
 
 		<link rel="stylesheet" type="text/css" href="../css/index.css">
@@ -82,7 +93,7 @@
 			<form id="lobbyForm">
 				<div class="row" id="row9">
 					<div class="col-sm-12">
-						<button onclick="goBack(event)" class="btn btn-default" align="left">PLAY AGAIN?</button>
+						<button onclick="leaveLobby(event)" class="btn btn-default" align="left">BACK</button>
 					</div>
 				</div>
 				<div class="row" id="row5">
@@ -100,13 +111,13 @@
 				<div class="row" id="row7">
 					<table>
 						<tr>
-							<th>User1</th>
+							<th style="color: yellow" id="yourPlayer">You</th>
 						</tr>
 						<tr>
-							<th>User2</th>
+							<th id="opponent1">Waiting...</th>
 						</tr>
 						<tr>
-							<th>User3</th>
+							<th id="opponent2">Waiting...</th>
 						</tr>
 					</table>
 				</div>

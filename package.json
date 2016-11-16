@@ -7,10 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build-dev": "babel ./server/src/index.js --watch --out-file ./server/dist/index.js",
     "build": "babel ./server/src/index.js --out-file ./server/dist/index.js",
-    "build-client-babel": "babel ./client/js/src/start.js --out-file ./client/js/dist/babel/start.js && babel ./client/js/src/game.js --out-file ./client/js/dist/babel/game.js",
-    "build-start": "browserify ./client/js/dist/babel/start.js -o ./client/js/dist/browserified/start.js",
-    "build-game": "browserify ./client/js/dist/babel/game.js -o ./client/js/dist/browserified/game.js",
-    "start-server": "npm run build-client-babel && npm run build-start && npm run build-game && node ./server/dist/index.js"
+    "start-server": "babel ./client/js/src/start.js --out-file ./client/js/dist/babel/start.js && babel ./client/js/src/game.js --out-file ./client/js/dist/babel/game.js && browserify ./client/js/dist/babel/game.js -o ./client/js/dist/browserified/game.js && browserify ./client/js/dist/babel/start.js -o ./client/js/dist/browserified/start.js && node ./server/dist/index.js"
   },
   "keywords": [
     "pacman"

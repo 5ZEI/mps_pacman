@@ -17,17 +17,61 @@ function loadScript() {
   require("../browserified/game.js");
 }
 
+// check if a received message from the client is a stringified json
+function IsJsonString(str) {
+  try {
+    JSON.parse(str);
+  } catch (e) {
+    return false;
+  }
+  return true;
+}
+
+// wait for the users to connect to this lobby before starting the game
+function waitForUsers() {
+  if (connected) {
+    connection.onmessage = function (event) {
+      if (IsJsonString(event.data)) {
+        (function () {
+          var _JSON$parse = JSON.parse(event.data),
+              ready = _JSON$parse.ready,
+              usersPlaying = _JSON$parse.usersPlaying;
+
+          console.log(ready);
+          console.log(usersPlaying);
+          // if (ready) {
+          // start game with users!
+          // }
+          // else {
+          var count = 0;
+          usersPlaying.map(function (connectedUser) {
+            if (connectedUser !== user) {
+              count++;
+              document.getElementById('opponent' + count).innerHTML = connectedUser;
+            }
+          });
+          while (count < 2) {
+            count++;
+            document.getElementById('opponent' + count).innerHTML = "Waiting...";
+          }
+          // }
+        })();
+      }
+    };
+  }
+}
+
 $(document).ready(function () {
   $("#choseMap1").click(function () {
     if ($("#choseMap2").is(':checked')) {
-      $("#choseMap2").removeAttr('checked');
+      $("#choseMap2").prop('checked', false);
     } else if (!$("#choseMap1").is(':checked')) {
       $("#choseMap1").prop('checked', true);
     }
   });
   $("#choseMap2").click(function () {
     if ($("#choseMap1").is(':checked')) {
-      $("#choseMap1").removeAttr('checked');
+      $("#choseMap1").prop('checked', false);
     } else if (!$("#choseMap2").is(':checked')) {
       $("#choseMap2").prop('checked', true);
     }
@@ -41,11 +85,13 @@ $(document).ready(function () {
       _toastr2.default.error('Completati campul "Username"', 'Eroare!');
     } else {
       if (connected) {
-        connection.send(JSON.stringify({ user: user }));
+        connection.send(JSON.stringify({ user: user, map: mapChosen }));
       }
       document.getElementById("welcome").style.display = 'none';
-      document.getElementById("game").style.display = 'initial';
-      loadScript();
+      document.getElementById("lobby").style.display = 'initial';
+      document.getElementById("yourPlayer").innerHTML = user;
+
+      waitForUsers();
     }
   });
 });
@@ -674,11 +720,8 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 		return map;
 	}
 
-	// const map = generateMap1(20, 20, 16, 16);
-	console.log(mapChosen);
-	var map = generateMap2(10, 10, 36, 36);
+	var map = mapChosen === 'map2' ? generateMap2(10, 10, 36, 36) : generateMap1(20, 20, 16, 16);
 	var direction = void 0;
-	//renderObject();
 
 	function upCollision(object, map, precision) {
 

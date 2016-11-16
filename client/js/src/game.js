@@ -616,11 +616,8 @@ $(document).ready(function(){
 		return map;
 	}
 
-	// const map = generateMap1(20, 20, 16, 16);
-	console.log(mapChosen);
-	const map = generateMap2(10, 10, 36, 36);
+	const map = (mapChosen === 'map2') ? generateMap2(10, 10, 36, 36) : generateMap1(20, 20, 16, 16);
 	let direction;
-	//renderObject();
 
 	function upCollision(object, map, precision){
 

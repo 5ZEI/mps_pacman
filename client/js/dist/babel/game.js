@@ -619,11 +619,8 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 		return map;
 	}
 
-	// const map = generateMap1(20, 20, 16, 16);
-	console.log(mapChosen);
-	var map = generateMap2(10, 10, 36, 36);
+	var map = mapChosen === 'map2' ? generateMap2(10, 10, 36, 36) : generateMap1(20, 20, 16, 16);
 	var direction = void 0;
-	//renderObject();
 
 	function upCollision(object, map, precision) {
 

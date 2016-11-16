@@ -94,13 +94,19 @@ table, th {
 #map1{
   width: 100px;
   height: 100px;
-  background-image: url("../images/pac.jpg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-image: url("../images/map1.jpg");
 }
 
 #map2{
   width: 100px;
   height: 100px;
-  background-image: url("../images/pac.jpg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-image: url("../images/map2.jpg");
 }
 
 #map1l{
