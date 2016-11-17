@@ -3,6 +3,32 @@
  */
 import $ from "jquery";
 
+// check if a received message from the client is a stringified json
+function IsJsonString(str) {
+  try {
+      JSON.parse(str);
+  } catch (e) {
+      return false;
+  }
+  return true;
+}
+
+function askServerForData() {
+	if (connected) {
+		connection.send('GimmePlayers');
+	}
+}
+
+function waitForCoordinates() {
+  if (connected) {
+    connection.onmessage = function(event) {
+      if (IsJsonString(event.data)) {
+
+      }
+    }
+  }
+}
+
 $(document).ready(function(){
 	const canvas=document.getElementById("canvas");
 	const ctx=canvas.getContext("2d");

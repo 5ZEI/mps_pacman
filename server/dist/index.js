@@ -74,10 +74,15 @@ var connections = {};
 var connectionIDCounter = 0;
 var usersReadyMap1 = [];
 var usersReadyMap2 = [];
+var usersClickedReadyMap1 = {};
+var usersClickedReadyMap2 = {};
 var lobbyNamesMap1 = {};
 var lobbyNamesMap2 = {};
 var lobbyMap1Id = 0;
 var lobbyMap2Id = 0;
+// configurations for users per game;
+var usersToStart = 3;
+var maxUsersPlaying = 8;
 
 // put logic here to detect whether the specified origin is allowed.
 function originIsAllowed(origin) {
@@ -106,14 +111,15 @@ function broadcast(data) {
 
 // Send a message to a connection by its connectionID
 function sendToConnectionId(connectionID, data) {
-  console.log("[SEND] Sending to [", connectionID, ", ", /*connections[connectionID].user ,*/" ]  this data: ", data);
+  console.log("[SEND] Sending to [", connectionID, ", ", connections[connectionID].user, " ]  this data: ", data);
   var connection = connections[connectionID];
   if (connection && connection.connected) {
     connection.send(data);
   }
 }
 
-function sendToPlayers(lobby, ready) {
+// Send the current lobby players and ready state to all the connections on the lobby
+function sendPlayersInLobby(lobby, ready) {
   var players = [];
 
   for (var id in lobby) {
@@ -122,6 +128,22 @@ function sendToPlayers(lobby, ready) {
 
   for (var _id in lobby) {
     sendToConnectionId(_id, JSON.stringify({ ready: ready, usersPlaying: players }));
+  }
+}
+
+function sendPlayersReadyInLobby(lobby, ready) {
+  if (!ready) {
+    return;
+  }
+
+  var players = [];
+
+  for (var id in ready) {
+    players.push(ready[id]);
+  }
+
+  for (var _id2 in lobby) {
+    sendToConnectionId(_id2, JSON.stringify({ usersReady: players }));
   }
 }
 
@@ -160,32 +182,66 @@ wss.on('request', function (request) {
       console.log('[RECV] Received from client: ' + messageData + " id: " + connection.id);
       console.log("========================================================");
 
-      // if user left the lobby
-      if (messageData === "leaveLobby") {
-        alreadyReceived = false;
+      if (messageData === 'ready') {
         if (userMap === 'map1') {
-          // there is one less user ready
           for (var id in lobbyNamesMap1) {
             var keys = Object.keys(lobbyNamesMap1[id]);
             var index = keys.indexOf(String(connection.id));
             if (index > -1) {
-              usersReadyMap1[id]--;
-              delete lobbyNamesMap1[id][index];
-              sendToPlayers(lobbyNamesMap1[id], false);
+              if (!usersClickedReadyMap1[id]) {
+                usersClickedReadyMap1[id] = {};
+              }
+              usersClickedReadyMap1[id][connection.id] = connection.user;
+              sendPlayersReadyInLobby(lobbyNamesMap1[id], usersClickedReadyMap1[id]);
+              break;
+            }
+          }
+        } else if (userMap === 'map2') {
+          for (var _id3 in lobbyNamesMap2) {
+            var _keys = Object.keys(lobbyNamesMap2[_id3]);
+            var _index = _keys.indexOf(String(connection.id));
+            if (_index > -1) {
+              if (!usersClickedReadyMap2[_id3]) {
+                usersClickedReadyMap2[_id3] = {};
+              }
+              usersClickedReadyMap2[_id3][connection.id] = connection.user;
+              sendPlayersReadyInLobby(lobbyNamesMap2[_id3], usersClickedReadyMap2[_id3]);
+              break;
+            }
+          }
+        }
+      }
+
+      // if user left the lobby
+      if (messageData === "leaveLobby") {
+        alreadyReceived = false;
+        if (userMap === 'map1') {
+          // remove him from the lobby that he is in (check in all of the lobbies) and notify others
+          for (var _id4 in lobbyNamesMap1) {
+            var _keys2 = Object.keys(lobbyNamesMap1[_id4]);
+            var _index2 = _keys2.indexOf(String(connection.id));
+            if (_index2 > -1) {
+              usersReadyMap1[_id4]--;
+              usersClickedReadyMap1[_id4] && delete usersClickedReadyMap1[_id4][_keys2[_index2]];
+              delete lobbyNamesMap1[_id4][_keys2[_index2]];
+              sendPlayersInLobby(lobbyNamesMap1[_id4], usersReadyMap1[_id4] >= usersToStart ? true : false);
+              sendPlayersReadyInLobby(lobbyNamesMap1[_id4], usersClickedReadyMap1[_id4]);
               break;
             }
           }
         }
 
         if (userMap === 'map2') {
-          // there is one less user ready
-          for (var _id2 in lobbyNamesMap2) {
-            var _keys = Object.keys(lobbyNamesMap2[_id2]);
-            var _index = _keys.indexOf(String(connection.id));
-            if (_index > -1) {
-              usersReadyMap2[_id2]--;
-              delete lobbyNamesMap2[_id2][_index];
-              sendToPlayers(lobbyNamesMap2[_id2], false);
+          // same for map 2
+          for (var _id5 in lobbyNamesMap2) {
+            var _keys3 = Object.keys(lobbyNamesMap2[_id5]);
+            var _index3 = _keys3.indexOf(String(connection.id));
+            if (_index3 > -1) {
+              usersReadyMap2[_id5]--;
+              usersClickedReadyMap2[_id5] && delete usersClickedReadyMap2[_id5][_keys3[_index3]];
+              delete lobbyNamesMap2[_id5][_keys3[_index3]];
+              sendPlayersInLobby(lobbyNamesMap2[_id5], usersReadyMap2[_id5] >= usersToStart ? true : false);
+              sendPlayersReadyInLobby(lobbyNamesMap2[_id5], usersClickedReadyMap2[_id5]);
               break;
             }
           }
@@ -197,6 +253,7 @@ wss.on('request', function (request) {
         var data = JSON.parse(messageData);
         // give the connection an username if it is sent and a map.
         if (data.user) {
+          var lobbyHeWasPutIn = void 0;
           connection.user = data.user;
           connection.map = data.map;
           connections[connection.id] = connection;
@@ -208,67 +265,70 @@ wss.on('request', function (request) {
             var lobbyWasEmpty = false;
             // in case it's map1
             if (userMap === 'map1') {
-              // save user to lobby waiting list
+              // if there are no lobbies create one with this user and send him info
               if (Object.keys(lobbyNamesMap1).length === 0) {
                 lobbyWasEmpty = true;
                 lobbyNamesMap1[lobbyMap1Id] = {};
                 lobbyNamesMap1[lobbyMap1Id][connection.id] = data.user;
                 usersReadyMap1[lobbyMap1Id] = 1;
-                sendToPlayers(lobbyNamesMap1[lobbyMap1Id], false);
-              } else for (var _id3 in lobbyNamesMap1) {
-                if (usersReadyMap1[_id3] < 3) {
-                  found = true;
-                  lobbyNamesMap1[_id3][connection.id] = data.user;
-                  usersReadyMap1[_id3]++;
-                  sendToPlayers(lobbyNamesMap1[_id3], usersReadyMap1[_id3] === 3 ? true : false);
-                  break;
-                  // if (usersReadyMap1[id] === 3) {
-                  //   if (!lobbyNamesMap1[lobbyMap1Id+1]) {
-                  //     lobbyMap1Id++;
-                  //     lobbyNamesMap1[lobbyMap1Id] = {};
-                  //     usersReadyMap1[lobbyMap1Id] = 0;
-                  //   }
-                  // }
-                }
+                lobbyHeWasPutIn = lobbyMap1Id;
+                sendPlayersInLobby(lobbyNamesMap1[lobbyMap1Id], false);
               }
+              // else search all lobbies for an open spot for this user
+              else for (var _id6 in lobbyNamesMap1) {
+                  if (usersReadyMap1[_id6] < maxUsersPlaying) {
+                    found = true;
+                    lobbyNamesMap1[_id6][connection.id] = data.user;
+                    usersReadyMap1[_id6]++;
+                    lobbyHeWasPutIn = _id6;
+                    sendPlayersInLobby(lobbyNamesMap1[_id6], usersReadyMap1[_id6] >= usersToStart ? true : false);
+                    break;
+                  }
+                }
+              // if there are no open spots, create a new lobby with this user
               if (!found && !lobbyWasEmpty) {
                 lobbyMap1Id++;
                 lobbyNamesMap1[lobbyMap1Id] = {};
-                lobbyNamesMap1[lobbyMap1Id][connection._id] = data.user;
+                lobbyNamesMap1[lobbyMap1Id][connection.id] = data.user;
                 usersReadyMap1[lobbyMap1Id] = 1;
-                sendToPlayers(lobbyNamesMap1[lobbyMap1Id], false);
-              }
-            } else if (userMap === 'map2') {
-              // save user to lobby waiting list
-              if (Object.keys(lobbyNamesMap2).length === 0) {
-                lobbyNamesMap2[lobbyMap2Id] = {};
-                lobbyNamesMap2[lobbyMap2Id][connection.id] = data.user;
-                usersReadyMap2[lobbyMap2Id] = 1;
-                sendToPlayers(lobbyNamesMap2[lobbyMap2Id], false);
-              } else for (var _id4 in lobbyNamesMap2) {
-                if (usersReadyMap2 < 3) {
-                  found = true;
-                  lobbyNamesMap2[_id4][connection.id] = data.user;
-                  usersReadyMap2[_id4]++;
-                  sendToPlayers(lobbyNamesMap2[_id4], usersReadyMap2[_id4] === 3 ? true : false);
-                  break;
-                  // if (usersReadyMap2[id] === 3) {
-                  //   if (!lobbyNamesMap2[lobbyMap2Id+1]) {
-                  //     lobbyMap2Id++;
-                  //     lobbyNamesMap2[lobbyMap2Id] = {};
-                  //     usersReadyMap2[lobbyMap2Id] = 0;
-                  //   }
-                  // }
-                }
-              }
-              if (!found) {
-                lobbyNamesMap2++;
-                lobbyNamesMap2[lobbyMap2Id] = {};
-                lobbyNamesMap2[lobbyMap2Id][connection._id] = data.user;
-                usersReadyMap2[lobbyMap2Id] = 1;
-                sendToPlayers(lobbyNamesMap2[lobbyMap2Id], false);
+                lobbyHeWasPutIn = lobbyMap1Id;
+                sendPlayersInLobby(lobbyNamesMap1[lobbyMap1Id], false);
               }
             }
+            // same for map 2
+            else if (userMap === 'map2') {
+                if (Object.keys(lobbyNamesMap2).length === 0) {
+                  lobbyWasEmpty = true;
+                  lobbyNamesMap2[lobbyMap2Id] = {};
+                  lobbyNamesMap2[lobbyMap2Id][connection.id] = data.user;
+                  usersReadyMap2[lobbyMap2Id] = 1;
+                  lobbyHeWasPutIn = lobbyMap2Id;
+                  sendPlayersInLobby(lobbyNamesMap2[lobbyMap2Id], false);
+                } else for (var _id7 in lobbyNamesMap2) {
+                  if (usersReadyMap2[_id7] < maxUsersPlaying) {
+                    found = true;
+                    lobbyNamesMap2[_id7][connection.id] = data.user;
+                    usersReadyMap2[_id7]++;
+                    lobbyHeWasPutIn = _id7;
+                    sendPlayersInLobby(lobbyNamesMap2[_id7], usersReadyMap2[_id7] >= usersToStart ? true : false);
+                    break;
+                  }
+                }
+                if (!found && !lobbyWasEmpty) {
+                  lobbyMap2Id++;
+                  lobbyNamesMap2[lobbyMap2Id] = {};
+                  lobbyNamesMap2[lobbyMap2Id][connection.id] = data.user;
+                  usersReadyMap2[lobbyMap2Id] = 1;
+                  lobbyHeWasPutIn = lobbyMap2Id;
+                  sendPlayersInLobby(lobbyNamesMap2[lobbyMap2Id], false);
+                }
+              }
+          }
+          if (data.map === "map1") {
+            sendPlayersReadyInLobby(lobbyNamesMap1[lobbyHeWasPutIn], usersClickedReadyMap1[lobbyHeWasPutIn]);
+          }
+          if (data.map === "map2") {
+            sendPlayersReadyInLobby(lobbyNamesMap2[lobbyHeWasPutIn], usersClickedReadyMap2[lobbyHeWasPutIn]);
           }
         }
       }
@@ -289,90 +349,34 @@ wss.on('request', function (request) {
 
     // Make sure to remove closed connections from the global pool
     delete connections[connection.id];
-    // If the lobby was deleted and the user left the game, update the state so the other players can be sent to lobby page
-    if (!lobbyNamesMap1[connection.id] && !lobbyNamesMap2[connection.id] && gamesPlayed) {
-      for (var id in gamesPlayed) {
-        var keys = Object.keys(gamesPlayed[id]);
-        var index = keys.indexOf(String(connection.id));
-        if (index > -1) {
-          var playersLeft = [];
 
-          delete gamesPlayed[id][keys[index]];
-
-          if (connection.map === 'map1') {
-            usersReadyMap1--;
-            var playersInLobby = Object.keys(lobbyNamesMap1);
-            if (playersInLobby.length === 0) {
-              lobbyNamesMap1 = gamesPlayed[id];
-            } else if (playersInLobby.length === 1) {
-              gamesPlayed[id][playersInLobby[0]] = lobbyNamesMap1[playersInLobby[0]];
-              lobbyNamesMap1 = {};
-            } else if (playersInLobby.length === 2) {
-              gamesPlayed[id][playersInLobby[0]] = lobbyNamesMap1[playersInLobby[0]];
-              delete lobbyNamesMap1[playersInLobby[0]];
-              sendToConnectionId(playersInLobby[1], JSON.stringify({ ready: false, usersPlaying: lobbyNamesMap1[playersInLobby[1]] }));
-            }
-          } else if (connection.map === 'map2') {
-            usersReadyMap2--;
-            var _playersInLobby = Object.keys(lobbyNamesMap2);
-            if (Object.keys(lobbyNamesMap2).length === 0) {
-              lobbyNamesMap2 = gamesPlayed[id];
-            } else if (_playersInLobby.length === 1) {
-              gamesPlayed[id][_playersInLobby[0]] = lobbyNamesMap2[_playersInLobby[0]];
-              lobbyNamesMap2 = {};
-            } else if (_playersInLobby.length === 2) {
-              gamesPlayed[id][_playersInLobby[0]] = lobbyNamesMap2[_playersInLobby[0]];
-              delete lobbyNamesMap2[_playersInLobby[0]];
-              sendToConnectionId(_playersInLobby[1], JSON.stringify({ ready: false, usersPlaying: lobbyNamesMap2[_playersInLobby[1]] }));
-            }
-          }
-
-          for (var clientId in gamesPlayed[id]) {
-            playersLeft.push(gamesPlayed[id][clientId]);
-          }
-
-          console.log(playersLeft);
-
-          for (var _clientId in gamesPlayed[id]) {
-            sendToConnectionId(_clientId, JSON.stringify({ ready: false, usersPlaying: playersLeft }));
-          }
-
-          delete gamesPlayed[id];
-          break;
-        }
+    // same as when he backs out of the lobby
+    for (var id in lobbyNamesMap1) {
+      var keys = Object.keys(lobbyNamesMap1[id]);
+      var index = keys.indexOf(String(connection.id));
+      if (index > -1) {
+        usersReadyMap1[id]--;
+        delete lobbyNamesMap1[id][keys[index]];
+        usersClickedReadyMap1[id] && delete usersClickedReadyMap1[id][keys[index]];
+        sendPlayersInLobby(lobbyNamesMap1[id], usersReadyMap1[id] >= usersToStart ? true : false);
+        sendPlayersReadyInLobby(lobbyNamesMap1[id], usersClickedReadyMap1[id]);
+        break;
       }
     }
-    // if there are less than 3 players in lobby and one leaves, update the situation and send it to the other clients in this lobby.
-    else {
-        delete lobbyNamesMap1[connection.id];
-        delete lobbyNamesMap2[connection.id];
 
-        var playersLeftMap1 = [];
-        var playersLeftMap2 = [];
-        var _id5 = void 0;
-
-        for (_id5 in lobbyNamesMap1) {
-          playersLeftMap1.push(lobbyNamesMap1[_id5]);
-        }
-        for (_id5 in lobbyNamesMap2) {
-          playersLeftMap2.push(lobbyNamesMap2[_id5]);
-        }
-
-        if (connection.map === 'map1') {
-          usersReadyMap1--;
-        }
-
-        if (connection.map === 'map2') {
-          usersReadyMap2--;
-        }
-
-        for (_id5 in lobbyNamesMap1) {
-          sendToConnectionId(_id5, JSON.stringify({ ready: false, usersPlaying: playersLeftMap1 }));
-        }
-        for (_id5 in lobbyNamesMap2) {
-          sendToConnectionId(_id5, JSON.stringify({ ready: false, usersPlaying: playersLeftMap2 }));
-        }
+    // search him in both lobbies
+    for (var _id8 in lobbyNamesMap2) {
+      var _keys4 = Object.keys(lobbyNamesMap2[_id8]);
+      var _index4 = _keys4.indexOf(String(connection.id));
+      if (_index4 > -1) {
+        usersReadyMap2[_id8]--;
+        delete lobbyNamesMap2[_id8][_keys4[_index4]];
+        usersClickedReadyMap2[_id8] && delete usersClickedReadyMap2[_id8][_keys4[_index4]];
+        sendPlayersInLobby(lobbyNamesMap2[_id8], usersReadyMap2[_id8] >= usersToStart ? true : false);
+        sendPlayersReadyInLobby(lobbyNamesMap2[_id8], usersClickedReadyMap2[_id8]);
+        break;
       }
+    }
   });
 });
 
@@ -381,73 +385,3 @@ server.listen(3000, function () {
   console.log('[LISTEN] ' + new Date() + 'Server is listening on port 3000');
   console.log("========================================================");
 });
-
-//   lobbyNamesMap1[connection.id] = data.user;
-//   usersReadyMap1++;
-
-//   // if there are three players
-//   if (usersReadyMap1 === 3) {
-//     let players = [];
-//     let id;
-
-//     for (id in lobbyNamesMap1) {
-//       players.push(lobbyNamesMap1[id]);
-//     }
-//     for (id in lobbyNamesMap1) {
-//       // set the state as ready
-//       sendToConnectionId(id, JSON.stringify({ready: true, usersPlaying: players}));
-//     }
-
-//     // save the game that started (the players in it)
-//     gamesPlayed[gameId++] = lobbyNamesMap1;
-//     // reset lobby for next players
-//     usersReadyMap1 = 0;
-//     lobbyNamesMap1 = {};
-//   }
-//   // if there are less than three players, update the lobby and send list to connected players
-//   else {
-//     let players = [];
-//     let id;
-
-//     for (id in lobbyNamesMap1) {
-//       players.push(lobbyNamesMap1[id]);
-//     }
-//     for (id in lobbyNamesMap1) {
-//       sendToConnectionId(id, JSON.stringify({ready: false, usersPlaying: players}));
-//     }
-//   }
-// }
-// // same for map2
-// else if (userMap === 'map2') {
-//   lobbyNamesMap2[connection.id] = data.user;
-//   usersReadyMap2++;
-
-//   if (usersReadyMap2 === 3) {
-//     let players = [];
-//     let id;
-
-//     for (id in lobbyNamesMap2) {
-//       players.push(lobbyNamesMap2[id]);
-//     }
-//     for (id in lobbyNamesMap2) {
-//       sendToConnectionId(id, JSON.stringify({ready: true, usersPlaying: players}));
-//     }
-
-//     gamesPlayed[gameId++] = lobbyNamesMap2;
-//     usersReadyMap2 = 0;
-//     lobbyNamesMap2 = {};
-//   }
-//   else {
-//     let players = [];
-//     let id;
-
-//     for (id in lobbyNamesMap2) {
-//       players.push(lobbyNamesMap2[id]);
-//     }
-//     for (id in lobbyNamesMap2) {
-//       sendToConnectionId(id, JSON.stringify({ready: false, usersPlaying: players}));
-//     }
-//   }
-// }
-// }
-// }

@@ -11,6 +11,26 @@
 			var mapChosen;
 			var connected = false;
 			var connection = new WebSocket("ws://localhost:3000");
+		  var usersJoined, usersReadyToPlay, readyState;
+		  var scores = {};
+		  /*
+		  	this will be an object of objects of format:
+		  	playerId: {
+					state: 'hunter'/'hunted',
+					direction: 'left'||'right'||'up'||'down',
+					score: Number
+		  	}
+		  */
+		  var playerObjects = {};
+		  /*
+		  	this will be an object of objects of format:
+		  	playerId: {
+					x: Number,
+					y: Number
+		  	}
+		  */
+		  var initialPositions = {};
+
 			connection.onopen = function(e) {
         console.log("Connection to server established!");
 				connected = true;
@@ -27,12 +47,16 @@
       	}
 				document.getElementById("welcome").style.display = 'initial';
 				document.getElementById("lobby").style.display = 'none';
+	      document.getElementById("startGame").disabled = false;
       }
 
       function goBack(event) {
 				event.preventDefault();
 				document.getElementById("welcome").style.display = 'initial';
 				document.getElementById("gameover").style.display = 'none';
+				// lazyness to treat this case, just reset the connection (reconnect to server) + it's better for the dynamic required game.js!
+				// since i didn't find another solutin.
+				window.location = '/';
 			};
 		</script>
 		<script src="../js/dist/browserified/start.js" type="text/javascript"></script>
@@ -94,6 +118,7 @@
 				<div class="row" id="row9">
 					<div class="col-sm-12">
 						<button onclick="leaveLobby(event)" class="btn btn-default" align="left">BACK</button>
+						<button type="button" id="startGame" class="btn btn-default" style="margin-left:5px; display:none;" align="left">READY?</button>
 					</div>
 				</div>
 				<div class="row" id="row5">
@@ -122,9 +147,24 @@
 						<tr>
 							<th id="opponent2">Waiting...</th>
 						</tr>
+						<tr>
+							<th id="opponent3">Waiting...</th>
+						</tr>
+						<tr>
+							<th id="opponent4">Waiting...</th>
+						</tr>
+						<tr>
+							<th id="opponent5">Waiting...</th>
+						</tr>
+						<tr>
+							<th id="opponent6">Waiting...</th>
+						</tr>
+						<tr>
+							<th id="opponent7">Waiting...</th>
+						</tr>
 					</table>
 				</div>
-				
+
 			</form>
 		</div>
 		<!-- END LOBBY PAGE -->
@@ -160,20 +200,36 @@
 				<div class="row" id="row8">
 					<table>
 						<tr>
-							<th>Username</th>
-							<th>Score</th>
+							<th id="yourUser">Username</th>
+							<th id="yourScore">Score</th>
 						</tr>
 						<tr>
-							<th>User1</th>
-							<th>70</th>
+							<th id="Op1">c</th>
+							<th id="Op1Score">c</th>
 						</tr>
 						<tr>
-							<th>User2</th>
-							<th>20</th>
+							<th id="Op2">c</th>
+							<th id="Op2Score">c</th>
 						</tr>
 						<tr>
-							<th>User3</th>
-							<th>10</th>
+							<th id="Op3">c</th>
+							<th id="Op3Score">c</th>
+						</tr>
+						<tr>
+							<th id="Op4">c</th>
+							<th id="Op4Score">c</th>
+						</tr>
+						<tr>
+							<th id="Op5">c</th>
+							<th id="Op5Score">c</th>
+						</tr>
+						<tr>
+							<th id="Op6">c</th>
+							<th id="Op6Score">c</th>
+						</tr>
+						<tr>
+							<th id="Op7">c</th>
+							<th id="Op7Score">c</th>
 						</tr>
 					</table>
 				</div>

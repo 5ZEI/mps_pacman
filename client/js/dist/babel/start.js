@@ -33,37 +33,90 @@ function waitForUsers() {
         (function () {
           var _JSON$parse = JSON.parse(event.data),
               ready = _JSON$parse.ready,
-              usersPlaying = _JSON$parse.usersPlaying;
+              usersPlaying = _JSON$parse.usersPlaying,
+              usersReady = _JSON$parse.usersReady;
 
-          console.log(ready);
-          console.log(usersPlaying);
-          // if (ready) {
-          // start game with users!
-          // }
-          // else {
           var count = 0;
           var sameName = 0;
-          usersPlaying.map(function (connectedUser) {
-            if (connectedUser === user) {
-              sameName++;
-              if (sameName > 1) {
+
+          if (ready !== undefined && usersPlaying !== undefined) {
+            readyState = ready;
+            usersJoined = usersPlaying;
+          }
+
+          if (usersReady !== undefined) {
+            usersReadyToPlay = usersReady;
+          }
+
+          if (usersPlaying) {
+            usersPlaying.map(function (connectedUser) {
+              if (connectedUser === user) {
+                sameName++;
+                if (sameName > 1) {
+                  count++;
+                  document.getElementById('opponent' + count).innerHTML = connectedUser;
+                }
+              } else {
                 count++;
                 document.getElementById('opponent' + count).innerHTML = connectedUser;
               }
-            } else {
+            });
+            while (count < 7) {
               count++;
-              document.getElementById('opponent' + count).innerHTML = connectedUser;
+              document.getElementById('opponent' + count).innerHTML = "Waiting...";
             }
-          });
-          while (count < 2) {
-            count++;
-            document.getElementById('opponent' + count).innerHTML = "Waiting...";
+
+            if (ready) {
+              document.getElementById('startGame').style.display = "initial";
+            } else {
+              document.getElementById('startGame').style.display = "none";
+            }
           }
-          // }
+          if (usersReady) {
+            if (usersReady.indexOf(user) > -1) {
+              document.getElementById("yourPlayer").style.color = "#c7e825";
+            } else {
+              document.getElementById("yourPlayer").style.color = "yellow";
+            }
+            for (var i = 1; i < 8; i++) {
+              var doc = document.getElementById('opponent' + i);
+              var player = doc.innerHTML;
+              if (usersReady.indexOf(player) > -1) {
+                doc.style.color = "#66ff66";
+              } else {
+                doc.style.color = "#3cb0fd";
+              }
+            }
+            if (readyState && usersReady.length === usersJoined.length) {
+              document.getElementById("wait").innerHTML = "Starting...";
+              makeWaitingNice("Starting...".length);
+              setTimeout(function () {
+                loadScript();
+                document.getElementById("lobby").style.display = 'none';
+                document.getElementById("game").style.display = 'initial';
+                document.getElementById("wait").innerHTML = "Waiting for players...";
+                setTimeout(function () {
+                  document.getElementById("game").style.display = 'none';
+                  document.getElementById("gameover").style.display = 'initial';
+                  // DISPLAY SCORE
+                }, /*180000*/3000);
+              }, 3000);
+            }
+          }
         })();
       }
     };
   }
+}
+
+function makeWaitingNice(initialLength) {
+  setTimeout(function () {
+    var text = document.getElementById("wait").innerHTML;
+    document.getElementById("wait").innerHTML = text.length === initialLength - 2 || text.length === initialLength - 1 ? text + '.' : text.substring(0, text.length - 2);
+    if (document.getElementById("lobby").style.display !== 'none' && Math.abs(initialLength - text.length) <= 2) {
+      makeWaitingNice(initialLength);
+    }
+  }, 1000);
 }
 
 $(document).ready(function () {
@@ -90,6 +143,7 @@ $(document).ready(function () {
       _toastr2.default.error('Completati campul "Username"', 'Eroare!');
     } else {
       if (connected) {
+        // give my data to the server
         connection.send(JSON.stringify({ user: user, map: mapChosen }));
       }
       document.getElementById("welcome").style.display = 'none';
@@ -97,6 +151,17 @@ $(document).ready(function () {
       document.getElementById("yourPlayer").innerHTML = user;
 
       waitForUsers();
+      document.getElementById("wait").innerHTML = "Waiting for players...";
+      makeWaitingNice(document.getElementById("wait").innerHTML.length);
+    }
+  });
+
+  $("#startGame").click(function () {
+    if (connected) {
+      // tell the server i'm ready
+      connection.send("ready");
+      document.getElementById("startGame").disabled = true;
+      document.getElementById("startGame").innerHTML = "READY";
     }
   });
 });

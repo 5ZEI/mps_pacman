@@ -7,6 +7,33 @@ var _jquery2 = _interopRequireDefault(_jquery);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+// check if a received message from the client is a stringified json
+function IsJsonString(str) {
+	try {
+		JSON.parse(str);
+	} catch (e) {
+		return false;
+	}
+	return true;
+} /**
+   *
+   */
+
+
+function askServerForData() {
+	if (connected) {
+		connection.send('GimmePlayers');
+	}
+}
+
+function waitForCoordinates() {
+	if (connected) {
+		connection.onmessage = function (event) {
+			if (IsJsonString(event.data)) {}
+		};
+	}
+}
+
 (0, _jquery2.default)(document).ready(function () {
 	var canvas = document.getElementById("canvas");
 	var ctx = canvas.getContext("2d");
@@ -786,9 +813,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 			ctx.fillRect(map[i].x, map[i].y, map[i].width, map[i].height);
 		}
 	}
-}); /**
-     *
-     */
+});
 
 },{"jquery":2}],2:[function(require,module,exports){
 /*!
