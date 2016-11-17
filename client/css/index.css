@@ -53,12 +53,11 @@ table, th {
 }
 
 #row6{
-  padding-top: 30px;
+  padding-top: 8px;
   text-align: center;
 }
 
 #row7{
-  padding-top: 50px;
   padding-left: 200px;
   text-align: center;
   color: #3cb0fd;
@@ -79,8 +78,8 @@ table, th {
   padding-left: 15px;
 }
 
-#row10{
-  padding-left: 50px;
+#col2{
+  padding-left: 520px;
   text-align: center;
 }
 
@@ -158,8 +157,8 @@ input[type='text']{
 }
 
 .loader {
-  margin: 100px auto;
-  font-size: 25px;
+  margin: 55px auto;
+  font-size: 7px;
   width: 1em;
   height: 1em;
   border-radius: 50%;
