@@ -42,8 +42,15 @@ function waitForUsers() {
           // }
           // else {
           var count = 0;
+          var sameName = 0;
           usersPlaying.map(function (connectedUser) {
-            if (connectedUser !== user) {
+            if (connectedUser === user) {
+              sameName++;
+              if (sameName > 1) {
+                count++;
+                document.getElementById('opponent' + count).innerHTML = connectedUser;
+              }
+            } else {
               count++;
               document.getElementById('opponent' + count).innerHTML = connectedUser;
             }

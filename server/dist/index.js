@@ -72,12 +72,12 @@ app.get('/', function (req, res, next) {
 // globals for storing client sessions
 var connections = {};
 var connectionIDCounter = 0;
-var usersReadyMap1 = 0;
-var usersReadyMap2 = 0;
+var usersReadyMap1 = [];
+var usersReadyMap2 = [];
 var lobbyNamesMap1 = {};
 var lobbyNamesMap2 = {};
-var gamesPlayed = {};
-var gameId = 0;
+var lobbyMap1Id = 0;
+var lobbyMap2Id = 0;
 
 // put logic here to detect whether the specified origin is allowed.
 function originIsAllowed(origin) {
@@ -106,10 +106,22 @@ function broadcast(data) {
 
 // Send a message to a connection by its connectionID
 function sendToConnectionId(connectionID, data) {
-  console.log("[SEND] Sending to [", connectionID, ", ", connections[connectionID].user, " ]  this data: ", data);
+  console.log("[SEND] Sending to [", connectionID, ", ", /*connections[connectionID].user ,*/" ]  this data: ", data);
   var connection = connections[connectionID];
   if (connection && connection.connected) {
     connection.send(data);
+  }
+}
+
+function sendToPlayers(lobby, ready) {
+  var players = [];
+
+  for (var id in lobby) {
+    players.push(lobby[id]);
+  }
+
+  for (var _id in lobby) {
+    sendToConnectionId(_id, JSON.stringify({ ready: ready, usersPlaying: players }));
   }
 }
 
@@ -153,39 +165,29 @@ wss.on('request', function (request) {
         alreadyReceived = false;
         if (userMap === 'map1') {
           // there is one less user ready
-          usersReadyMap1--;
-          // delete connection from map 1 lobby
-          delete lobbyNamesMap1[connection.id];
-
-          var id = void 0;
-          var players = [];
-
-          for (id in lobbyNamesMap1) {
-            players.push(lobbyNamesMap1[id]);
-          }
-
-          // notify other players that the user was removed
-          for (id in lobbyNamesMap1) {
-            sendToConnectionId(id, JSON.stringify({ ready: false, usersPlaying: players }));
+          for (var id in lobbyNamesMap1) {
+            var keys = Object.keys(lobbyNamesMap1[id]);
+            var index = keys.indexOf(String(connection.id));
+            if (index > -1) {
+              usersReadyMap1[id]--;
+              delete lobbyNamesMap1[id][index];
+              sendToPlayers(lobbyNamesMap1[id], false);
+              break;
+            }
           }
         }
 
         if (userMap === 'map2') {
           // there is one less user ready
-          usersReadyMap2--;
-          // delete connection from map 2 lobby
-          delete lobbyNamesMap2[connection.id];
-
-          var _id = void 0;
-          var _players = [];
-
-          for (_id in lobbyNamesMap2) {
-            _players.push(lobbyNamesMap2[_id]);
-          }
-
-          // notify other players that the user was removed
-          for (_id in lobbyNamesMap2) {
-            sendToConnectionId(_id, JSON.stringify({ ready: false, usersPlaying: _players }));
+          for (var _id2 in lobbyNamesMap2) {
+            var _keys = Object.keys(lobbyNamesMap2[_id2]);
+            var _index = _keys.indexOf(String(connection.id));
+            if (_index > -1) {
+              usersReadyMap2[_id2]--;
+              delete lobbyNamesMap2[_id2][_index];
+              sendToPlayers(lobbyNamesMap2[_id2], false);
+              break;
+            }
           }
         }
       }
@@ -202,75 +204,71 @@ wss.on('request', function (request) {
           if (!alreadyReceived && data.map) {
             alreadyReceived = true;
             userMap = data.map;
+            var found = false;
+            var lobbyWasEmpty = false;
             // in case it's map1
             if (userMap === 'map1') {
               // save user to lobby waiting list
-              lobbyNamesMap1[connection.id] = data.user;
-              usersReadyMap1++;
-
-              // if there are three players
-              if (usersReadyMap1 === 3) {
-                var _players2 = [];
-                var _id2 = void 0;
-
-                for (_id2 in lobbyNamesMap1) {
-                  _players2.push(lobbyNamesMap1[_id2]);
+              if (Object.keys(lobbyNamesMap1).length === 0) {
+                lobbyWasEmpty = true;
+                lobbyNamesMap1[lobbyMap1Id] = {};
+                lobbyNamesMap1[lobbyMap1Id][connection.id] = data.user;
+                usersReadyMap1[lobbyMap1Id] = 1;
+                sendToPlayers(lobbyNamesMap1[lobbyMap1Id], false);
+              } else for (var _id3 in lobbyNamesMap1) {
+                if (usersReadyMap1[_id3] < 3) {
+                  found = true;
+                  lobbyNamesMap1[_id3][connection.id] = data.user;
+                  usersReadyMap1[_id3]++;
+                  sendToPlayers(lobbyNamesMap1[_id3], usersReadyMap1[_id3] === 3 ? true : false);
+                  break;
+                  // if (usersReadyMap1[id] === 3) {
+                  //   if (!lobbyNamesMap1[lobbyMap1Id+1]) {
+                  //     lobbyMap1Id++;
+                  //     lobbyNamesMap1[lobbyMap1Id] = {};
+                  //     usersReadyMap1[lobbyMap1Id] = 0;
+                  //   }
+                  // }
                 }
-                for (_id2 in lobbyNamesMap1) {
-                  // set the state as ready
-                  sendToConnectionId(_id2, JSON.stringify({ ready: true, usersPlaying: _players2 }));
-                }
-
-                // save the game that started (the players in it)
-                gamesPlayed[gameId++] = lobbyNamesMap1;
-                // reset lobby for next players
-                usersReadyMap1 = 0;
-                lobbyNamesMap1 = {};
               }
-              // if there are less than three players, update the lobby and send list to connected players
-              else {
-                  var _players3 = [];
-                  var _id3 = void 0;
-
-                  for (_id3 in lobbyNamesMap1) {
-                    _players3.push(lobbyNamesMap1[_id3]);
-                  }
-                  for (_id3 in lobbyNamesMap1) {
-                    sendToConnectionId(_id3, JSON.stringify({ ready: false, usersPlaying: _players3 }));
-                  }
+              if (!found && !lobbyWasEmpty) {
+                lobbyMap1Id++;
+                lobbyNamesMap1[lobbyMap1Id] = {};
+                lobbyNamesMap1[lobbyMap1Id][connection._id] = data.user;
+                usersReadyMap1[lobbyMap1Id] = 1;
+                sendToPlayers(lobbyNamesMap1[lobbyMap1Id], false);
+              }
+            } else if (userMap === 'map2') {
+              // save user to lobby waiting list
+              if (Object.keys(lobbyNamesMap2).length === 0) {
+                lobbyNamesMap2[lobbyMap2Id] = {};
+                lobbyNamesMap2[lobbyMap2Id][connection.id] = data.user;
+                usersReadyMap2[lobbyMap2Id] = 1;
+                sendToPlayers(lobbyNamesMap2[lobbyMap2Id], false);
+              } else for (var _id4 in lobbyNamesMap2) {
+                if (usersReadyMap2 < 3) {
+                  found = true;
+                  lobbyNamesMap2[_id4][connection.id] = data.user;
+                  usersReadyMap2[_id4]++;
+                  sendToPlayers(lobbyNamesMap2[_id4], usersReadyMap2[_id4] === 3 ? true : false);
+                  break;
+                  // if (usersReadyMap2[id] === 3) {
+                  //   if (!lobbyNamesMap2[lobbyMap2Id+1]) {
+                  //     lobbyMap2Id++;
+                  //     lobbyNamesMap2[lobbyMap2Id] = {};
+                  //     usersReadyMap2[lobbyMap2Id] = 0;
+                  //   }
+                  // }
                 }
+              }
+              if (!found) {
+                lobbyNamesMap2++;
+                lobbyNamesMap2[lobbyMap2Id] = {};
+                lobbyNamesMap2[lobbyMap2Id][connection._id] = data.user;
+                usersReadyMap2[lobbyMap2Id] = 1;
+                sendToPlayers(lobbyNamesMap2[lobbyMap2Id], false);
+              }
             }
-            // same for map2
-            else if (userMap === 'map2') {
-                lobbyNamesMap2[connection.id] = data.user;
-                usersReadyMap2++;
-
-                if (usersReadyMap2 === 3) {
-                  var _players4 = [];
-                  var _id4 = void 0;
-
-                  for (_id4 in lobbyNamesMap2) {
-                    _players4.push(lobbyNamesMap2[_id4]);
-                  }
-                  for (_id4 in lobbyNamesMap2) {
-                    sendToConnectionId(_id4, JSON.stringify({ ready: true, usersPlaying: _players4 }));
-                  }
-
-                  gamesPlayed[gameId++] = lobbyNamesMap2;
-                  usersReadyMap2 = 0;
-                  lobbyNamesMap2 = {};
-                } else {
-                  var _players5 = [];
-                  var _id5 = void 0;
-
-                  for (_id5 in lobbyNamesMap2) {
-                    _players5.push(lobbyNamesMap2[_id5]);
-                  }
-                  for (_id5 in lobbyNamesMap2) {
-                    sendToConnectionId(_id5, JSON.stringify({ ready: false, usersPlaying: _players5 }));
-                  }
-                }
-              }
           }
         }
       }
@@ -303,10 +301,30 @@ wss.on('request', function (request) {
 
           if (connection.map === 'map1') {
             usersReadyMap1--;
-            lobbyNamesMap1 = gamesPlayed[id];
+            var playersInLobby = Object.keys(lobbyNamesMap1);
+            if (playersInLobby.length === 0) {
+              lobbyNamesMap1 = gamesPlayed[id];
+            } else if (playersInLobby.length === 1) {
+              gamesPlayed[id][playersInLobby[0]] = lobbyNamesMap1[playersInLobby[0]];
+              lobbyNamesMap1 = {};
+            } else if (playersInLobby.length === 2) {
+              gamesPlayed[id][playersInLobby[0]] = lobbyNamesMap1[playersInLobby[0]];
+              delete lobbyNamesMap1[playersInLobby[0]];
+              sendToConnectionId(playersInLobby[1], JSON.stringify({ ready: false, usersPlaying: lobbyNamesMap1[playersInLobby[1]] }));
+            }
           } else if (connection.map === 'map2') {
             usersReadyMap2--;
-            lobbyNamesMap2 = gamesPlayed[id];
+            var _playersInLobby = Object.keys(lobbyNamesMap2);
+            if (Object.keys(lobbyNamesMap2).length === 0) {
+              lobbyNamesMap2 = gamesPlayed[id];
+            } else if (_playersInLobby.length === 1) {
+              gamesPlayed[id][_playersInLobby[0]] = lobbyNamesMap2[_playersInLobby[0]];
+              lobbyNamesMap2 = {};
+            } else if (_playersInLobby.length === 2) {
+              gamesPlayed[id][_playersInLobby[0]] = lobbyNamesMap2[_playersInLobby[0]];
+              delete lobbyNamesMap2[_playersInLobby[0]];
+              sendToConnectionId(_playersInLobby[1], JSON.stringify({ ready: false, usersPlaying: lobbyNamesMap2[_playersInLobby[1]] }));
+            }
           }
 
           for (var clientId in gamesPlayed[id]) {
@@ -331,13 +349,13 @@ wss.on('request', function (request) {
 
         var playersLeftMap1 = [];
         var playersLeftMap2 = [];
-        var _id6 = void 0;
+        var _id5 = void 0;
 
-        for (_id6 in lobbyNamesMap1) {
-          playersLeftMap1.push(lobbyNamesMap1[_id6]);
+        for (_id5 in lobbyNamesMap1) {
+          playersLeftMap1.push(lobbyNamesMap1[_id5]);
         }
-        for (_id6 in lobbyNamesMap2) {
-          playersLeftMap2.push(lobbyNamesMap2[_id6]);
+        for (_id5 in lobbyNamesMap2) {
+          playersLeftMap2.push(lobbyNamesMap2[_id5]);
         }
 
         if (connection.map === 'map1') {
@@ -348,11 +366,11 @@ wss.on('request', function (request) {
           usersReadyMap2--;
         }
 
-        for (_id6 in lobbyNamesMap1) {
-          sendToConnectionId(_id6, JSON.stringify({ ready: false, usersPlaying: playersLeftMap1 }));
+        for (_id5 in lobbyNamesMap1) {
+          sendToConnectionId(_id5, JSON.stringify({ ready: false, usersPlaying: playersLeftMap1 }));
         }
-        for (_id6 in lobbyNamesMap2) {
-          sendToConnectionId(_id6, JSON.stringify({ ready: false, usersPlaying: playersLeftMap2 }));
+        for (_id5 in lobbyNamesMap2) {
+          sendToConnectionId(_id5, JSON.stringify({ ready: false, usersPlaying: playersLeftMap2 }));
         }
       }
   });
@@ -363,3 +381,73 @@ server.listen(3000, function () {
   console.log('[LISTEN] ' + new Date() + 'Server is listening on port 3000');
   console.log("========================================================");
 });
+
+//   lobbyNamesMap1[connection.id] = data.user;
+//   usersReadyMap1++;
+
+//   // if there are three players
+//   if (usersReadyMap1 === 3) {
+//     let players = [];
+//     let id;
+
+//     for (id in lobbyNamesMap1) {
+//       players.push(lobbyNamesMap1[id]);
+//     }
+//     for (id in lobbyNamesMap1) {
+//       // set the state as ready
+//       sendToConnectionId(id, JSON.stringify({ready: true, usersPlaying: players}));
+//     }
+
+//     // save the game that started (the players in it)
+//     gamesPlayed[gameId++] = lobbyNamesMap1;
+//     // reset lobby for next players
+//     usersReadyMap1 = 0;
+//     lobbyNamesMap1 = {};
+//   }
+//   // if there are less than three players, update the lobby and send list to connected players
+//   else {
+//     let players = [];
+//     let id;
+
+//     for (id in lobbyNamesMap1) {
+//       players.push(lobbyNamesMap1[id]);
+//     }
+//     for (id in lobbyNamesMap1) {
+//       sendToConnectionId(id, JSON.stringify({ready: false, usersPlaying: players}));
+//     }
+//   }
+// }
+// // same for map2
+// else if (userMap === 'map2') {
+//   lobbyNamesMap2[connection.id] = data.user;
+//   usersReadyMap2++;
+
+//   if (usersReadyMap2 === 3) {
+//     let players = [];
+//     let id;
+
+//     for (id in lobbyNamesMap2) {
+//       players.push(lobbyNamesMap2[id]);
+//     }
+//     for (id in lobbyNamesMap2) {
+//       sendToConnectionId(id, JSON.stringify({ready: true, usersPlaying: players}));
+//     }
+
+//     gamesPlayed[gameId++] = lobbyNamesMap2;
+//     usersReadyMap2 = 0;
+//     lobbyNamesMap2 = {};
+//   }
+//   else {
+//     let players = [];
+//     let id;
+
+//     for (id in lobbyNamesMap2) {
+//       players.push(lobbyNamesMap2[id]);
+//     }
+//     for (id in lobbyNamesMap2) {
+//       sendToConnectionId(id, JSON.stringify({ready: false, usersPlaying: players}));
+//     }
+//   }
+// }
+// }
+// }

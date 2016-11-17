@@ -32,8 +32,16 @@ function waitForUsers() {
         // }
         // else {
           let count = 0;
+          let sameName = 0;
           usersPlaying.map((connectedUser) => {
-            if (connectedUser !== user) {
+            if (connectedUser === user) {
+              sameName++;
+              if (sameName > 1) {
+                count++;
+                document.getElementById(`opponent${count}`).innerHTML = connectedUser;
+              }
+            }
+            else {
               count++;
               document.getElementById(`opponent${count}`).innerHTML = connectedUser;
             }
