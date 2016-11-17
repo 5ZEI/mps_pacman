@@ -132,6 +132,10 @@ function sendPlayersReadyInLobby(lobby, ready) {
   }
 }
 
+function sendPlayersInitPositions(lobby) {
+
+}
+
 // When a client opens a connection
 wss.on('request', function(request) {
   // Make sure we only accept requests from an allowed origin
@@ -166,6 +170,35 @@ wss.on('request', function(request) {
       console.log();
       console.log('[RECV] Received from client: ' + messageData + " id: " + connection.id);
       console.log("========================================================");
+
+      if (messageData === 'gimmePlayersPositions') {
+      }
+
+      if (messageData === 'gameStarting') {
+        if (userMap === 'map1') {
+          for (let id in lobbyNamesMap1) {
+            const keys = Object.keys(lobbyNamesMap1[id]);
+            const index = keys.indexOf(String(connection.id));
+
+            if (index > -1) {
+              lobbyNamesMap1[id]['state'] = 'started';
+              break;
+            }
+          }
+        }
+        else if (userMap === 'map2') {
+          for (let id in lobbyNamesMap2) {
+            const keys = Object.keys(lobbyNamesMap2[id]);
+            const index = keys.indexOf(String(connection.id));
+            if (index > -1) {
+              if (index > -1) {
+              lobbyNamesMap2[id]['state'] = 'started';
+              break;
+            }
+            }
+          }
+        }
+      }
 
       if (messageData === 'ready') {
         if (userMap === 'map1') {
@@ -210,6 +243,9 @@ wss.on('request', function(request) {
               usersReadyMap1[id]--;
               usersClickedReadyMap1[id] && delete usersClickedReadyMap1[id][keys[index]];
               delete lobbyNamesMap1[id][keys[index]];
+              if (lobbyNamesMap1[id]['state'] === 'started' && usersReadyMap1[id] < usersToStart) {
+                lobbyNamesMap1[id]['state'] = 'waiting';
+              }
               sendPlayersInLobby(lobbyNamesMap1[id], (usersReadyMap1[id] >= usersToStart) ? true : false);
               sendPlayersReadyInLobby(lobbyNamesMap1[id], usersClickedReadyMap1[id]);
               break;
@@ -226,6 +262,9 @@ wss.on('request', function(request) {
               usersReadyMap2[id]--;
               usersClickedReadyMap2[id] && delete usersClickedReadyMap2[id][keys[index]];
               delete lobbyNamesMap2[id][keys[index]];
+              if (lobbyNamesMap2[id]['state'] === 'started' && usersReadyMap2[id] < usersToStart) {
+                lobbyNamesMap2[id]['state'] = 'waiting';
+              }
               sendPlayersInLobby(lobbyNamesMap2[id], (usersReadyMap2[id] >= usersToStart) ? true : false);
               sendPlayersReadyInLobby(lobbyNamesMap2[id], usersClickedReadyMap2[id]);
               break;
@@ -258,11 +297,13 @@ wss.on('request', function(request) {
                 lobbyNamesMap1[lobbyMap1Id][connection.id] = data.user;
                 usersReadyMap1[lobbyMap1Id] = 1;
                 lobbyHeWasPutIn = lobbyMap1Id;
+                lobbyNamesMap1[lobbyMap1Id]['state'] = 'waiting';
                 sendPlayersInLobby(lobbyNamesMap1[lobbyMap1Id], false);
               }
               // else search all lobbies for an open spot for this user
               else for (let id in lobbyNamesMap1) {
-                if (usersReadyMap1[id] < maxUsersPlaying) {
+                console.log("STATE IS!!!!!: ", lobbyNamesMap1[id]['state']);
+                if ((usersReadyMap1[id] < maxUsersPlaying) && (lobbyNamesMap1[id]['state'] === 'waiting')){
                   found = true;
                   lobbyNamesMap1[id][connection.id] = data.user;
                   usersReadyMap1[id]++;
@@ -278,6 +319,7 @@ wss.on('request', function(request) {
                 lobbyNamesMap1[lobbyMap1Id][connection.id] = data.user;
                 usersReadyMap1[lobbyMap1Id] = 1;
                 lobbyHeWasPutIn = lobbyMap1Id;
+                lobbyNamesMap1[lobbyMap1Id]['state'] = 'waiting';
                 sendPlayersInLobby(lobbyNamesMap1[lobbyMap1Id], false);
               }
             }
@@ -289,10 +331,11 @@ wss.on('request', function(request) {
                 lobbyNamesMap2[lobbyMap2Id][connection.id] = data.user;
                 usersReadyMap2[lobbyMap2Id] = 1;
                 lobbyHeWasPutIn = lobbyMap2Id;
+                lobbyNamesMap2[id][lobbyMap2Id]['state'] = 'waiting';
                 sendPlayersInLobby(lobbyNamesMap2[lobbyMap2Id], false);
               }
               else for (let id in lobbyNamesMap2) {
-                if (usersReadyMap2[id] < maxUsersPlaying) {
+                if ((usersReadyMap2[id] < maxUsersPlaying) && (lobbyNamesMap2[id]['state'] === 'waiting')) {
                   found = true;
                   lobbyNamesMap2[id][connection.id] = data.user;
                   usersReadyMap2[id]++;
@@ -307,6 +350,7 @@ wss.on('request', function(request) {
                 lobbyNamesMap2[lobbyMap2Id][connection.id] = data.user;
                 usersReadyMap2[lobbyMap2Id] = 1;
                 lobbyHeWasPutIn = lobbyMap2Id;
+                lobbyNamesMap2[lobbyMap2Id]['state'] = 'waiting';
                 sendPlayersInLobby(lobbyNamesMap2[lobbyMap2Id], false);
               }
             }
@@ -347,6 +391,9 @@ wss.on('request', function(request) {
         usersReadyMap1[id]--;
         delete lobbyNamesMap1[id][keys[index]];
         usersClickedReadyMap1[id] && delete usersClickedReadyMap1[id][keys[index]];
+        if (lobbyNamesMap1[id]['state'] === 'started' && usersReadyMap1[id] < usersToStart) {
+          lobbyNamesMap1[id]['state'] = 'waiting';
+        }
         sendPlayersInLobby(lobbyNamesMap1[id], (usersReadyMap1[id] >= usersToStart) ? true : false);
         sendPlayersReadyInLobby(lobbyNamesMap1[id], usersClickedReadyMap1[id]);
         break;
@@ -361,6 +408,9 @@ wss.on('request', function(request) {
         usersReadyMap2[id]--;
         delete lobbyNamesMap2[id][keys[index]];
         usersClickedReadyMap2[id] && delete usersClickedReadyMap2[id][keys[index]];
+        if (lobbyNamesMap2[id]['state'] === 'started' && usersReadyMap2[id] < usersToStart) {
+          lobbyNamesMap2[id]['state'] = 'waiting';
+        }
         sendPlayersInLobby(lobbyNamesMap2[id], (usersReadyMap2[id] >= usersToStart) ? true : false);
         sendPlayersReadyInLobby(lobbyNamesMap2[id], usersClickedReadyMap2[id]);
         break;

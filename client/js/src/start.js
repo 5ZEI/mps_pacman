@@ -82,6 +82,7 @@ function waitForUsers() {
             }
           }
           if (readyState && (usersReady.length === usersJoined.length)) {
+            connection.send("gameStarting");
             document.getElementById("wait").innerHTML = "Starting...";
             makeWaitingNice("Starting...".length);
             setTimeout(() => {

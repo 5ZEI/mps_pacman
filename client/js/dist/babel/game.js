@@ -21,7 +21,7 @@ function IsJsonString(str) {
 
 function askServerForData() {
 	if (connected) {
-		connection.send('GimmePlayers');
+		connection.send('gimmePlayersPositions');
 	}
 }
 

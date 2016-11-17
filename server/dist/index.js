@@ -122,12 +122,12 @@ function sendToConnectionId(connectionID, data) {
 function sendPlayersInLobby(lobby, ready) {
   var players = [];
 
-  for (var id in lobby) {
-    players.push(lobby[id]);
+  for (var _id in lobby) {
+    players.push(lobby[_id]);
   }
 
-  for (var _id in lobby) {
-    sendToConnectionId(_id, JSON.stringify({ ready: ready, usersPlaying: players }));
+  for (var _id2 in lobby) {
+    sendToConnectionId(_id2, JSON.stringify({ ready: ready, usersPlaying: players }));
   }
 }
 
@@ -138,14 +138,16 @@ function sendPlayersReadyInLobby(lobby, ready) {
 
   var players = [];
 
-  for (var id in ready) {
-    players.push(ready[id]);
+  for (var _id3 in ready) {
+    players.push(ready[_id3]);
   }
 
-  for (var _id2 in lobby) {
-    sendToConnectionId(_id2, JSON.stringify({ usersReady: players }));
+  for (var _id4 in lobby) {
+    sendToConnectionId(_id4, JSON.stringify({ usersReady: players }));
   }
 }
+
+function sendPlayersInitPositions(lobby) {}
 
 // When a client opens a connection
 wss.on('request', function (request) {
@@ -182,30 +184,57 @@ wss.on('request', function (request) {
       console.log('[RECV] Received from client: ' + messageData + " id: " + connection.id);
       console.log("========================================================");
 
-      if (messageData === 'ready') {
+      if (messageData === 'gimmePlayersPositions') {}
+
+      if (messageData === 'gameStarting') {
         if (userMap === 'map1') {
-          for (var id in lobbyNamesMap1) {
-            var keys = Object.keys(lobbyNamesMap1[id]);
+          for (var _id5 in lobbyNamesMap1) {
+            var keys = Object.keys(lobbyNamesMap1[_id5]);
             var index = keys.indexOf(String(connection.id));
+
             if (index > -1) {
-              if (!usersClickedReadyMap1[id]) {
-                usersClickedReadyMap1[id] = {};
-              }
-              usersClickedReadyMap1[id][connection.id] = connection.user;
-              sendPlayersReadyInLobby(lobbyNamesMap1[id], usersClickedReadyMap1[id]);
+              lobbyNamesMap1[_id5]['state'] = 'started';
               break;
             }
           }
         } else if (userMap === 'map2') {
-          for (var _id3 in lobbyNamesMap2) {
-            var _keys = Object.keys(lobbyNamesMap2[_id3]);
+          for (var _id6 in lobbyNamesMap2) {
+            var _keys = Object.keys(lobbyNamesMap2[_id6]);
             var _index = _keys.indexOf(String(connection.id));
             if (_index > -1) {
-              if (!usersClickedReadyMap2[_id3]) {
-                usersClickedReadyMap2[_id3] = {};
+              if (_index > -1) {
+                lobbyNamesMap2[_id6]['state'] = 'started';
+                break;
               }
-              usersClickedReadyMap2[_id3][connection.id] = connection.user;
-              sendPlayersReadyInLobby(lobbyNamesMap2[_id3], usersClickedReadyMap2[_id3]);
+            }
+          }
+        }
+      }
+
+      if (messageData === 'ready') {
+        if (userMap === 'map1') {
+          for (var _id7 in lobbyNamesMap1) {
+            var _keys2 = Object.keys(lobbyNamesMap1[_id7]);
+            var _index2 = _keys2.indexOf(String(connection.id));
+            if (_index2 > -1) {
+              if (!usersClickedReadyMap1[_id7]) {
+                usersClickedReadyMap1[_id7] = {};
+              }
+              usersClickedReadyMap1[_id7][connection.id] = connection.user;
+              sendPlayersReadyInLobby(lobbyNamesMap1[_id7], usersClickedReadyMap1[_id7]);
+              break;
+            }
+          }
+        } else if (userMap === 'map2') {
+          for (var _id8 in lobbyNamesMap2) {
+            var _keys3 = Object.keys(lobbyNamesMap2[_id8]);
+            var _index3 = _keys3.indexOf(String(connection.id));
+            if (_index3 > -1) {
+              if (!usersClickedReadyMap2[_id8]) {
+                usersClickedReadyMap2[_id8] = {};
+              }
+              usersClickedReadyMap2[_id8][connection.id] = connection.user;
+              sendPlayersReadyInLobby(lobbyNamesMap2[_id8], usersClickedReadyMap2[_id8]);
               break;
             }
           }
@@ -217,15 +246,18 @@ wss.on('request', function (request) {
         alreadyReceived = false;
         if (userMap === 'map1') {
           // remove him from the lobby that he is in (check in all of the lobbies) and notify others
-          for (var _id4 in lobbyNamesMap1) {
-            var _keys2 = Object.keys(lobbyNamesMap1[_id4]);
-            var _index2 = _keys2.indexOf(String(connection.id));
-            if (_index2 > -1) {
-              usersReadyMap1[_id4]--;
-              usersClickedReadyMap1[_id4] && delete usersClickedReadyMap1[_id4][_keys2[_index2]];
-              delete lobbyNamesMap1[_id4][_keys2[_index2]];
-              sendPlayersInLobby(lobbyNamesMap1[_id4], usersReadyMap1[_id4] >= usersToStart ? true : false);
-              sendPlayersReadyInLobby(lobbyNamesMap1[_id4], usersClickedReadyMap1[_id4]);
+          for (var _id9 in lobbyNamesMap1) {
+            var _keys4 = Object.keys(lobbyNamesMap1[_id9]);
+            var _index4 = _keys4.indexOf(String(connection.id));
+            if (_index4 > -1) {
+              usersReadyMap1[_id9]--;
+              usersClickedReadyMap1[_id9] && delete usersClickedReadyMap1[_id9][_keys4[_index4]];
+              delete lobbyNamesMap1[_id9][_keys4[_index4]];
+              if (lobbyNamesMap1[_id9]['state'] === 'started' && usersReadyMap1[_id9] < usersToStart) {
+                lobbyNamesMap1[_id9]['state'] = 'waiting';
+              }
+              sendPlayersInLobby(lobbyNamesMap1[_id9], usersReadyMap1[_id9] >= usersToStart ? true : false);
+              sendPlayersReadyInLobby(lobbyNamesMap1[_id9], usersClickedReadyMap1[_id9]);
               break;
             }
           }
@@ -233,15 +265,18 @@ wss.on('request', function (request) {
 
         if (userMap === 'map2') {
           // same for map 2
-          for (var _id5 in lobbyNamesMap2) {
-            var _keys3 = Object.keys(lobbyNamesMap2[_id5]);
-            var _index3 = _keys3.indexOf(String(connection.id));
-            if (_index3 > -1) {
-              usersReadyMap2[_id5]--;
-              usersClickedReadyMap2[_id5] && delete usersClickedReadyMap2[_id5][_keys3[_index3]];
-              delete lobbyNamesMap2[_id5][_keys3[_index3]];
-              sendPlayersInLobby(lobbyNamesMap2[_id5], usersReadyMap2[_id5] >= usersToStart ? true : false);
-              sendPlayersReadyInLobby(lobbyNamesMap2[_id5], usersClickedReadyMap2[_id5]);
+          for (var _id10 in lobbyNamesMap2) {
+            var _keys5 = Object.keys(lobbyNamesMap2[_id10]);
+            var _index5 = _keys5.indexOf(String(connection.id));
+            if (_index5 > -1) {
+              usersReadyMap2[_id10]--;
+              usersClickedReadyMap2[_id10] && delete usersClickedReadyMap2[_id10][_keys5[_index5]];
+              delete lobbyNamesMap2[_id10][_keys5[_index5]];
+              if (lobbyNamesMap2[_id10]['state'] === 'started' && usersReadyMap2[_id10] < usersToStart) {
+                lobbyNamesMap2[_id10]['state'] = 'waiting';
+              }
+              sendPlayersInLobby(lobbyNamesMap2[_id10], usersReadyMap2[_id10] >= usersToStart ? true : false);
+              sendPlayersReadyInLobby(lobbyNamesMap2[_id10], usersClickedReadyMap2[_id10]);
               break;
             }
           }
@@ -272,16 +307,18 @@ wss.on('request', function (request) {
                 lobbyNamesMap1[lobbyMap1Id][connection.id] = data.user;
                 usersReadyMap1[lobbyMap1Id] = 1;
                 lobbyHeWasPutIn = lobbyMap1Id;
+                lobbyNamesMap1[lobbyMap1Id]['state'] = 'waiting';
                 sendPlayersInLobby(lobbyNamesMap1[lobbyMap1Id], false);
               }
               // else search all lobbies for an open spot for this user
-              else for (var _id6 in lobbyNamesMap1) {
-                  if (usersReadyMap1[_id6] < maxUsersPlaying) {
+              else for (var _id11 in lobbyNamesMap1) {
+                  console.log("STATE IS!!!!!: ", lobbyNamesMap1[_id11]['state']);
+                  if (usersReadyMap1[_id11] < maxUsersPlaying && lobbyNamesMap1[_id11]['state'] === 'waiting') {
                     found = true;
-                    lobbyNamesMap1[_id6][connection.id] = data.user;
-                    usersReadyMap1[_id6]++;
-                    lobbyHeWasPutIn = _id6;
-                    sendPlayersInLobby(lobbyNamesMap1[_id6], usersReadyMap1[_id6] >= usersToStart ? true : false);
+                    lobbyNamesMap1[_id11][connection.id] = data.user;
+                    usersReadyMap1[_id11]++;
+                    lobbyHeWasPutIn = _id11;
+                    sendPlayersInLobby(lobbyNamesMap1[_id11], usersReadyMap1[_id11] >= usersToStart ? true : false);
                     break;
                   }
                 }
@@ -292,6 +329,7 @@ wss.on('request', function (request) {
                 lobbyNamesMap1[lobbyMap1Id][connection.id] = data.user;
                 usersReadyMap1[lobbyMap1Id] = 1;
                 lobbyHeWasPutIn = lobbyMap1Id;
+                lobbyNamesMap1[lobbyMap1Id]['state'] = 'waiting';
                 sendPlayersInLobby(lobbyNamesMap1[lobbyMap1Id], false);
               }
             }
@@ -303,14 +341,15 @@ wss.on('request', function (request) {
                   lobbyNamesMap2[lobbyMap2Id][connection.id] = data.user;
                   usersReadyMap2[lobbyMap2Id] = 1;
                   lobbyHeWasPutIn = lobbyMap2Id;
+                  lobbyNamesMap2[id][lobbyMap2Id]['state'] = 'waiting';
                   sendPlayersInLobby(lobbyNamesMap2[lobbyMap2Id], false);
-                } else for (var _id7 in lobbyNamesMap2) {
-                  if (usersReadyMap2[_id7] < maxUsersPlaying) {
+                } else for (var _id12 in lobbyNamesMap2) {
+                  if (usersReadyMap2[_id12] < maxUsersPlaying && lobbyNamesMap2[_id12]['state'] === 'waiting') {
                     found = true;
-                    lobbyNamesMap2[_id7][connection.id] = data.user;
-                    usersReadyMap2[_id7]++;
-                    lobbyHeWasPutIn = _id7;
-                    sendPlayersInLobby(lobbyNamesMap2[_id7], usersReadyMap2[_id7] >= usersToStart ? true : false);
+                    lobbyNamesMap2[_id12][connection.id] = data.user;
+                    usersReadyMap2[_id12]++;
+                    lobbyHeWasPutIn = _id12;
+                    sendPlayersInLobby(lobbyNamesMap2[_id12], usersReadyMap2[_id12] >= usersToStart ? true : false);
                     break;
                   }
                 }
@@ -320,6 +359,7 @@ wss.on('request', function (request) {
                   lobbyNamesMap2[lobbyMap2Id][connection.id] = data.user;
                   usersReadyMap2[lobbyMap2Id] = 1;
                   lobbyHeWasPutIn = lobbyMap2Id;
+                  lobbyNamesMap2[lobbyMap2Id]['state'] = 'waiting';
                   sendPlayersInLobby(lobbyNamesMap2[lobbyMap2Id], false);
                 }
               }
@@ -351,29 +391,35 @@ wss.on('request', function (request) {
     delete connections[connection.id];
 
     // same as when he backs out of the lobby
-    for (var id in lobbyNamesMap1) {
-      var keys = Object.keys(lobbyNamesMap1[id]);
+    for (var _id13 in lobbyNamesMap1) {
+      var keys = Object.keys(lobbyNamesMap1[_id13]);
       var index = keys.indexOf(String(connection.id));
       if (index > -1) {
-        usersReadyMap1[id]--;
-        delete lobbyNamesMap1[id][keys[index]];
-        usersClickedReadyMap1[id] && delete usersClickedReadyMap1[id][keys[index]];
-        sendPlayersInLobby(lobbyNamesMap1[id], usersReadyMap1[id] >= usersToStart ? true : false);
-        sendPlayersReadyInLobby(lobbyNamesMap1[id], usersClickedReadyMap1[id]);
+        usersReadyMap1[_id13]--;
+        delete lobbyNamesMap1[_id13][keys[index]];
+        usersClickedReadyMap1[_id13] && delete usersClickedReadyMap1[_id13][keys[index]];
+        if (lobbyNamesMap1[_id13]['state'] === 'started' && usersReadyMap1[_id13] < usersToStart) {
+          lobbyNamesMap1[_id13]['state'] = 'waiting';
+        }
+        sendPlayersInLobby(lobbyNamesMap1[_id13], usersReadyMap1[_id13] >= usersToStart ? true : false);
+        sendPlayersReadyInLobby(lobbyNamesMap1[_id13], usersClickedReadyMap1[_id13]);
         break;
       }
     }
 
     // search him in both lobbies
-    for (var _id8 in lobbyNamesMap2) {
-      var _keys4 = Object.keys(lobbyNamesMap2[_id8]);
-      var _index4 = _keys4.indexOf(String(connection.id));
-      if (_index4 > -1) {
-        usersReadyMap2[_id8]--;
-        delete lobbyNamesMap2[_id8][_keys4[_index4]];
-        usersClickedReadyMap2[_id8] && delete usersClickedReadyMap2[_id8][_keys4[_index4]];
-        sendPlayersInLobby(lobbyNamesMap2[_id8], usersReadyMap2[_id8] >= usersToStart ? true : false);
-        sendPlayersReadyInLobby(lobbyNamesMap2[_id8], usersClickedReadyMap2[_id8]);
+    for (var _id14 in lobbyNamesMap2) {
+      var _keys6 = Object.keys(lobbyNamesMap2[_id14]);
+      var _index6 = _keys6.indexOf(String(connection.id));
+      if (_index6 > -1) {
+        usersReadyMap2[_id14]--;
+        delete lobbyNamesMap2[_id14][_keys6[_index6]];
+        usersClickedReadyMap2[_id14] && delete usersClickedReadyMap2[_id14][_keys6[_index6]];
+        if (lobbyNamesMap2[_id14]['state'] === 'started' && usersReadyMap2[_id14] < usersToStart) {
+          lobbyNamesMap2[_id14]['state'] = 'waiting';
+        }
+        sendPlayersInLobby(lobbyNamesMap2[_id14], usersReadyMap2[_id14] >= usersToStart ? true : false);
+        sendPlayersReadyInLobby(lobbyNamesMap2[_id14], usersClickedReadyMap2[_id14]);
         break;
       }
     }
