@@ -1,20 +1,23 @@
 import toastr from 'toastr';
+import {getInitialConfiguration, getNewPositions} from './game.js';
 
 global.jQuery = require('jquery');
 const bootstrap = require('bootstrap');
 const $ = global.jQuery;
+let timeoutGame;
+let timeoutLoader;
 
 // load the js file
 function loadScript() {
-  require("../browserified/game.js");
+  require("./game.js");
 }
 
 // check if a received message from the client is a stringified json
 function IsJsonString(str) {
   try {
-      JSON.parse(str);
+    JSON.parse(str);
   } catch (e) {
-      return false;
+    return false;
   }
   return true;
 }
@@ -23,20 +26,63 @@ function IsJsonString(str) {
 function waitForUsers() {
   if (connected) {
     connection.onmessage = function(event) {
+      if (event.data === "cantContinueGame") {
+        clearTimeout(timeoutGame);
+        clearTimeout(timeoutLoader);
+        timeoutGame = null;
+        timeoutLoader = null;
+        if (document.getElementById("game").style.display !== 'none') {
+          toastr.options.positionClass = 'toast-top-right';
+          toastr.error('Minimul de jucatori nu este implinit', 'Joc oprit!');
+        }
+        document.getElementById("wait").innerHTML = "Waiting for players...";
+        makeWaitingNice("Waiting for players...".length);
+        document.getElementById("gameover").style.display = 'none';
+        document.getElementById("lobby").style.display = 'initial';
+      }
+
+      if (event.data === "youLeft") {
+        clearTimeout(timeoutGame);
+        clearTimeout(timeoutLoader);
+        timeoutGame = null;
+        timeoutLoader = null;
+        toastr.options.positionClass = 'toast-top-right';
+        toastr.success('Ai parasit lobby-ul', 'Notificare!');
+        document.getElementById("wait").innerHTML = "Waiting for players...";
+        document.getElementById("gameover").style.display = 'none';
+        makeWaitingNice("Waiting for players...".length);
+      }
+
       if (IsJsonString(event.data)) {
-        const {ready, usersPlaying, usersReady} = JSON.parse(event.data);
+        const {
+          yourId,
+          ready,
+          usersPlaying,
+          usersReady,
+          usersInitialConfig,
+          newPosition,
+          newPositionId
+        } = JSON.parse(event.data);
         let count = 0;
         let sameName = 0;
 
-        if (ready!==undefined && usersPlaying !== undefined) {
+        if (ready!==undefined && usersPlaying !== undefined && yourId !== undefined) {
           readyState = ready;
           usersJoined = usersPlaying;
+          myId = yourId;
         }
 
         if (usersReady !== undefined) {
           usersReadyToPlay = usersReady;
         }
 
+        if (usersInitialConfig !== undefined) {
+          getInitialConfiguration(usersInitialConfig);
+        }
+
+        if (newPosition !== undefined && newPositionId !== undefined) {
+          getNewPositions(newPosition, newPositionId);
+        }
 
         if (usersPlaying) {
           usersPlaying.map((connectedUser) => {
@@ -55,6 +101,7 @@ function waitForUsers() {
           while (count < 7) {
             count++;
             document.getElementById(`opponent${count}`).innerHTML = "Waiting...";
+            document.getElementById(`opponent${count}`).style.color = "#3cb0fd";
           }
 
           if (ready) {
@@ -85,17 +132,23 @@ function waitForUsers() {
             connection.send("gameStarting");
             document.getElementById("wait").innerHTML = "Starting...";
             makeWaitingNice("Starting...".length);
-            setTimeout(() => {
-              loadScript();
-              document.getElementById("lobby").style.display = 'none';
-              document.getElementById("game").style.display = 'initial';
-              document.getElementById("wait").innerHTML = "Waiting for players...";
-              setTimeout(() => {
-                document.getElementById("game").style.display = 'none';
-                document.getElementById("gameover").style.display = 'initial';
-                // DISPLAY SCORE
-              }, /*180000*/3000)
-            }, 3000);
+            if (!timeoutGame) {
+              timeoutGame = setTimeout(() => {
+                loadScript();
+                if (connected) {
+                  connection.send('gimmePlayersPositions');
+                }
+                document.getElementById("lobby").style.display = 'none';
+                document.getElementById("game").style.display = 'initial';
+                document.getElementById("wait").innerHTML = "Waiting for players...";
+                setTimeout(() => {
+                  document.getElementById("game").style.display = 'none';
+                  document.getElementById("gameover").style.display = 'initial';
+                  connection.send("gameOver");
+                  // DISPLAY SCORE
+                }, 180000)
+              }, /*10000*/1000);
+            }
           }
         }
       }
@@ -104,13 +157,15 @@ function waitForUsers() {
 }
 
 function makeWaitingNice(initialLength) {
-  setTimeout(() => {
-    const text = document.getElementById("wait").innerHTML;
-    document.getElementById("wait").innerHTML = (text.length===initialLength-2 || text.length===initialLength-1) ? (text + '.') : text.substring(0, text.length - 2);
-    if (document.getElementById("lobby").style.display !== 'none' && (Math.abs(initialLength - text.length) <= 2)) {
-      makeWaitingNice(initialLength);
-    }
-  }, 1000)
+  // if (!timeoutLoader) {
+    timeoutLoader = setTimeout(() => {
+      const text = document.getElementById("wait").innerHTML;
+      document.getElementById("wait").innerHTML = (text.length===initialLength-2 || text.length===initialLength-1) ? (text + '.') : text.substring(0, text.length - 2);
+      if (document.getElementById("lobby").style.display !== 'none' && (Math.abs(initialLength - text.length) <= 2)) {
+        makeWaitingNice(initialLength);
+      }
+    }, 1000)
+  // }
 }
 
 $(document).ready(function() {

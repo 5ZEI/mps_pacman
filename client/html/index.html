@@ -7,11 +7,16 @@
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
 
 		<script>
-			var user;
-			var mapChosen;
 			var connected = false;
 			var connection = new WebSocket("ws://localhost:3000");
-		  var usersJoined, usersReadyToPlay, readyState;
+			// usersJoined => users in your lobby
+			// usersReadyToPlay => users that pressed the ready button
+			// readyState => if the game is ready to start
+			// playersInGame => the players that you have in your session game
+			// me => my id
+			// user => my user name
+			// mapChosen => the map that i've chosed
+		  var usersJoined, usersReadyToPlay, readyState, playersInGame, myId, user, mapChosen;
 		  var scores = {};
 		  /*
 		  	this will be an object of objects of format:
@@ -27,11 +32,14 @@
 		  	this will be an object of objects of format:
 		  	playerId: {
 		  		name: playerName,
+		  		state: 'hunter'/'hunted',
 					x: Number,
-					y: Number
+					y: Number,
+					height: Number,
+					width: Number
 		  	}
 		  */
-		  var initialPositions = {};
+		  var initialConfig = {};
 
 			connection.onopen = function(e) {
         console.log("Connection to server established!");
@@ -173,7 +181,7 @@
 
 		<!-- GAME PAGE -->
 		<div id="game" style="text-align:center; display:none;">
-			<h1> Dr. Jekyll or Mr. Hyde </h1>
+			<!-- <h1> Dr. Jekyll or Mr. Hyde </h1> -->
 			<canvas id="canvas" width="552px" height="615px" style="border:1px solid #000000; margin-top:20px; background-color: lightblue" >
 			</canvas>
 		</div>
