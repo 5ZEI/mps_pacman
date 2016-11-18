@@ -1,5 +1,5 @@
 import toastr from 'toastr';
-import {getInitialConfiguration, getNewPositions} from './game.js';
+import {getInitialConfiguration, getNewPositions, getNewScoresAndRespawn, changeLeader} from './game.js';
 
 global.jQuery = require('jquery');
 const bootstrap = require('bootstrap');
@@ -53,6 +53,10 @@ function waitForUsers() {
         makeWaitingNice("Waiting for players...".length);
       }
 
+      if (event.data.split("#") > 2 && event.data.split('#')[1] === 'newLeader') {
+
+      }
+
       if (IsJsonString(event.data)) {
         const {
           yourId,
@@ -61,7 +65,11 @@ function waitForUsers() {
           usersReady,
           usersInitialConfig,
           newPosition,
-          newPositionId
+          newPositionId,
+          newDataForHunter,
+          newDataForHunted,
+          hunterId,
+          huntedId
         } = JSON.parse(event.data);
         let count = 0;
         let sameName = 0;
@@ -82,6 +90,10 @@ function waitForUsers() {
 
         if (newPosition !== undefined && newPositionId !== undefined) {
           getNewPositions(newPosition, newPositionId);
+        }
+
+        if (newDataForHunted!==undefined && newDataForHunter!==undefined && hunterId!==undefined && huntedId!==undefined) {
+          getNewScoresAndRespawn(newDataForHunter, newDataForHunted, Number(hunterId), huntedId);
         }
 
         if (usersPlaying) {
@@ -141,12 +153,28 @@ function waitForUsers() {
                 document.getElementById("lobby").style.display = 'none';
                 document.getElementById("game").style.display = 'initial';
                 document.getElementById("wait").innerHTML = "Waiting for players...";
-                setTimeout(() => {
-                  document.getElementById("game").style.display = 'none';
-                  document.getElementById("gameover").style.display = 'initial';
-                  connection.send("gameOver");
+                let changedTimes = 0;
+                let interval = setInterval(() => {
+                  changedTimes++;
+                  console.log(changedTimes);
+                  if (me.state === 'hunter'){
+                    connection.send("changeHero#me");
+                  }
+                  else for (let other in others) {
+                    if (others[other].state === 'hunter') {
+                      console.log('other');
+                      connection.send(`changeHero#${other}`);
+                      break;
+                    }
+                  }
+                  if (changedTimes === 9) {
+                    clearInterval(interval);
+                    document.getElementById("game").style.display = 'none';
+                    document.getElementById("gameover").style.display = 'initial';
+                    connection.send("gameOver");
+                  }
                   // DISPLAY SCORE
-                }, 180000)
+                }, 1500)
               }, /*10000*/1000);
             }
           }

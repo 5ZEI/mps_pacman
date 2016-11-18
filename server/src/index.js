@@ -74,11 +74,10 @@ const initialConfigMap1 = [
   {x: 521.5, y: 0.5},
   {x: 0.5, y: 400.5},
   {x: 521.5, y: 584.5},
-  // TODO: COMPLETE LAST 4
   {x: 521.5, y: 400.5},
-  {x: 0, y: 0},
-  {x: 0, y: 0},
-  {x: 0, y: 0}
+  {x: 251.5, y: 281},
+  {x: 234, y: 107},
+  {x: 472, y: 226}
 ];
 // intitial coordinates for map2 (8 players max)
 const initialConfigMap2 = [
@@ -86,13 +85,11 @@ const initialConfigMap2 = [
   {x: 521.5, y: 0.5},
   {x: 0.5, y: 400.5},
   {x: 521.5, y: 584.5},
-  // TODO: COMPLETE LAST 4
   {x: 521.5, y: 400.5},
-  {x: 0, y: 0},
-  {x: 0, y: 0},
-  {x: 0, y: 0}
+  {x: 272, y: 183},
+  {x: 463, y: 326},
+  {x: 173, y: 523}
 ];
-
 
 // put logic here to detect whether the specified origin is allowed.
 function originIsAllowed(origin) {
@@ -121,7 +118,7 @@ function broadcast(data) {
 
 // Send a message to a connection by its connectionID
 function sendToConnectionId(connectionID, data) {
-  console.log("[SEND] Sending to [", connectionID, ", "/*, connections[connectionID].user */, " ]  this data: ", data);
+  // console.log("[SEND] Sending to [", connectionID, ", "/*, connections[connectionID].user */, " ]  this data: ", data);
   const connection = connections[connectionID];
   if (connection && connection.connected) {
     connection.send(data);
@@ -184,7 +181,10 @@ function sendPlayersInitPositions(userRequested, lobby, map) {
           name: playerName,
           state: 'hunter'/'hunted',
           x: Number,
-          y: Number
+          y: Number,
+          width: Number,
+          height: Number
+          score: Number,
         }
       */
       players[id] = {};
@@ -199,6 +199,7 @@ function sendPlayersInitPositions(userRequested, lobby, map) {
       players[id].y = (map === 'map1') ? initialConfigMap1[count].y : initialConfigMap2[count].y
       players[id].width = 30;
       players[id].height = 30;
+      players[id].score = 0;
 
       count ++;
     }
@@ -237,40 +238,55 @@ wss.on('request', function(request) {
   connection.on('message', function(message) {
     if (message.type === 'utf8') {
       const messageData = message.utf8Data;
-      console.log();
-      console.log('[RECV] Received from client: ' + messageData + " id: " + connection.id);
-      console.log("========================================================");
+      // console.log();
+      // console.log('[RECV] Received from client: ' + messageData + " id: " + connection.id);
+      // console.log("========================================================");
 
-      // this means that we received a new direction
-      // if (messageData.split('#').length > 1) {
-      //   const newMessageSplit = messageData.split('#');
-      //   for (let id in lobbyNamesMap1) {
-      //     const keys = Object.keys(lobbyNamesMap1[id]);
-      //     const index = keys.indexOf(String(connection.id));
+      // client asks for hero change
+      if (messageData.split('#').length > 1) {
+        const dataReceived = messageData.split('#');
+        for (let id in lobbyNamesMap1) {
+          const keys = Object.keys(lobbyNamesMap1[id]);
+          const index = keys.indexOf(String(connection.id));
 
-      //     if (index > -1) {
-      //       for (let nameId in lobbyNamesMap1[id]) {
-      //         if (nameId !== String(connection.id) && nameId !== 'state') {
-      //           sendToConnectionId(nameId, JSON.stringify({newDirection: newMessageSplit[1], newDirectionId: connection.id}));
-      //         }
-      //       }
-      //       break;
-      //     }
-      //   }
-      //   for (let id in lobbyNamesMap2) {
-      //     const keys = Object.keys(lobbyNamesMap2[id]);
-      //     const index = keys.indexOf(String(connection.id));
+          if (index > -1) {
+            let xy = Math.floor(Math.random() * keys.length);
+            if (dataReceived[1] === 'me' || lobbyNamesMap1[id][keys[xy]] === Number(dataReceived[1])) {
+              if (keys[xy] === connection.id) {
+                xy++;
+                if (xy==8) {
+                  xy-=2;
+                }
+              }
+            }
+            (keys[xy] === 'state') && (xy-=1);
+            (xy === 8) && (xy-=1);
+            console.log(lobbyNamesMap1[id][keys[xy]], keys[xy]);
+            sendMessageToPlayersInLobby(lobbyNamesMap1[id], `newLeader#${lobbyNamesMap1[id][keys[xy]]}`);
+            break;
+          }
+        }
+        for (let id in lobbyNamesMap2) {
+          const keys = Object.keys(lobbyNamesMap2[id]);
+          const index = keys.indexOf(String(connection.id));
 
-      //     if (index > -1) {
-      //       for (let nameId in lobbyNamesMap2[id]) {
-      //         if (nameId !== connection.id && id !== 'state') {
-      //           sendToConnectionId(nameId, JSON.stringify({newDirection: newMessageSplit[1], newDirectionId: connection.id}));
-      //         }
-      //       }
-      //       break;
-      //     }
-      //   }
-      // }
+         if (index > -1) {
+            let xy = Math.floor(Math.random() * keys.length);
+            if (dataReceived[1] === 'me' || lobbyNamesMap2[id][keys[xy]] === Number(dataReceived[1])) {
+              if (keys[xy] === connection.id) {
+                xy++;
+                if (xy==8) {
+                  xy-=2;
+                }
+              }
+            }
+            (keys[xy] === 'started') && (xy-=1);
+            (xy === 8) && (xy-=1);
+            sendMessageToPlayersInLobby(lobbyNamesMap2[id], `newLeader#${lobbyNamesMap2[id][keys[xy]]}`);
+            break;
+          }
+        }
+      }
 
       // client asks for initial positions
       if (messageData === 'gimmePlayersPositions') {
@@ -533,6 +549,78 @@ wss.on('request', function(request) {
                   sendToConnectionId(nameId, JSON.stringify({newPosition: {x: data.myNewPosition.x, y: data.myNewPosition.y}, newPositionId: connection.id}));
                 }
               }
+              break;
+            }
+          }
+        }
+        // client notifies server that a hunter ate him
+        if (data.playerAteMe && data.hunterId && data.me) {
+          let newDataForHunter = data.playerAteMe;
+          newDataForHunter.score ++;
+          let newDataForHunted = data.me;
+          (newDataForHunted.score >= 0) && (newDataForHunted.score--);
+
+          for (let id in lobbyNamesMap1) {
+            const keys = Object.keys(lobbyNamesMap1[id]);
+            const index = keys.indexOf(String(connection.id));
+
+            if (index > -1) {
+              let xy = Math.floor(Math.random() * Object.keys(lobbyNamesMap1[id]).length);
+              (xy < 5) && (xy +=3);
+              (xy === 8) && (xy -= 1);
+              newDataForHunted.x = initialConfigMap1[xy].x;
+              newDataForHunted.y = initialConfigMap1[xy].y;
+              sendMessageToPlayersInLobby(lobbyNamesMap1[id], JSON.stringify({newDataForHunter: newDataForHunter, newDataForHunted: newDataForHunted, hunterId: data.hunterId, huntedId: connection.id}));
+              break;
+            }
+          }
+          for (let id in lobbyNamesMap2) {
+            const keys = Object.keys(lobbyNamesMap2[id]);
+            const index = keys.indexOf(String(connection.id));
+
+            if (index > -1) {
+              let xy = Math.floor(Math.random() * Object.keys(lobbyNamesMap2[id]).length);
+              (xy < 5) && (xy +=3);
+              (xy === 8) && (xy -= 1);
+              newDataForHunted.x = initialConfigMap2[xy].x;
+              newDataForHunted.y = initialConfigMap2[xy].y;
+              sendMessageToPlayersInLobby(lobbyNamesMap2[id], JSON.stringify({newDataForHunter: newDataForHunter, newDataForHunted: newDataForHunted, hunterId: data.hunterId, huntedId: connection.id}));
+              break;
+            }
+          }
+        }
+        // client notifies server that he ate a hunted
+        if (data.iAte && data.huntedId && data.me) {
+          let newDataForHunter = data.me;
+          newDataForHunter.score ++;
+          let newDataForHunted = data.iAte;
+          (newDataForHunted.score > 0) && (newDataForHunted.score--);
+
+          for (let id in lobbyNamesMap1) {
+            const keys = Object.keys(lobbyNamesMap1[id]);
+            const index = keys.indexOf(String(connection.id));
+
+            if (index > -1) {
+              let xy = Math.floor(Math.random() * Object.keys(lobbyNamesMap1[id]).length);
+              (xy < 5) && (xy +=3);
+              (xy === 8) && (xy -= 1);
+              newDataForHunted.x = initialConfigMap1[xy].x;
+              newDataForHunted.y = initialConfigMap1[xy].y;
+              sendMessageToPlayersInLobby(lobbyNamesMap1[id], JSON.stringify({newDataForHunter: newDataForHunter, newDataForHunted: newDataForHunted, hunterId: connection.id, huntedId: data.huntedId}));
+              break;
+            }
+          }
+          for (let id in lobbyNamesMap2) {
+            const keys = Object.keys(lobbyNamesMap2[id]);
+            const index = keys.indexOf(String(connection.id));
+
+            if (index > -1) {
+              let xy = Math.floor(Math.random() * Object.keys(lobbyNamesMap2[id]).length);
+              (xy < 5) && (xy +=3);
+              (xy === 8) && (xy -= 1);
+              newDataForHunted.x = initialConfigMap2[xy].x;
+              newDataForHunted.y = initialConfigMap2[xy].y;
+              sendMessageToPlayersInLobby(lobbyNamesMap2[id], JSON.stringify({newDataForHunter: newDataForHunter, newDataForHunted: newDataForHunted, hunterId: data.hunterId, huntedId: connection.id}));
               break;
             }
           }

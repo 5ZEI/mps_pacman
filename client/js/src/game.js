@@ -690,35 +690,36 @@ function downCollision(object, map, precision){
 	}
 }
 
-// function colideWithPlayer(player, player2, precision){
-// 	let ok = 1;
+function colideWithPlayer(player1, player2, precision){
 
-// 	// down
-// 	if(player.y <= player2.y + player2.height + precision &&  player.y >= player2.y + player2.height - precision && player.x < player2.x + player2.width && player.x + player.width > player2.x){
-// 		ok = 0;
-// 	}
+	var ok = 1;
+	if(player1.y + player1.height + precision >= player2.y && player1.y + player1.height - precision <= player2.y && player1.x + player1.width > player2.x && player1.x < player2.x + player2.width){
+		ok = 0;
+	}
 
-// 	//left
-// 	if(player.x >= player2.x + player2.width - precision && player.x <= player2.x + player2.width + precision && player.y + player.height > player2.y && player.y < player2.y + player2.height){
-// 		ok = 0;
-// 	}
+	if(player1.y <= player2.y + player2.height + precision &&  player1.y >= player2.y + player2.height - precision && player1.x < player2.x + player2.width && player1.x + player1.width > player2.x){
+		ok = 0;
+	}
 
-// 	//right
-// 	if(player.x + player.width + precision >= player2.x && player.x + player.width -precision <= player2.x && player.y + player.height > player2.y && player.y < player2.y + player2.height){
-// 		ok = 0;
-// 	}
 
-// 	//up
-// 	if(player.y + player.height + precision >= player2.y && player.y + player.height - precision <= player2.y && player.x + player.width > player2.x && player.x < player2.x + player2.width){
-// 		ok = 0;
-// 	}
+	if(player1.x >= player2.x + player2.width - precision && player1.x <= player2.x + player2.width + precision && player1.y + player1.height > player2.y && player1.y < player2.y + player2.height){
+		ok = 0;
+	}
 
-// 	return (ok == 1);
-// }
+	if(player1.x + player1.width + precision >= player2.x && player1.x + player1.width -precision <= player2.x && player1.y + player1.height > player2.y && player1.y < player2.y + player2.height){
+		ok = 0;
+	}
 
-// function colideWithHero(player, hero, precision){
-// 	return colideWithPlayer(player, hero, precision);
-// }
+	if(ok == 1){
+		return false;
+	}else{
+		return true;
+	}
+}
+
+function colideWithHero(player, hero, precision){
+	return colideWithPlayer(player, hero, precision);
+}
 
 function setDirection(direction, speed) {
 	let xs = 0;
@@ -745,16 +746,12 @@ function setDirection(direction, speed) {
 }
 
 let direction;
-let opponentsPositions = {};
 // let directionChanged = false;
 let huntedSpeed = 0.2;
 let hunterSpeed = 0.4;
 let precision = 0.4;
-let others = {};
-let me = {};
 
 function renderObject(){
-	// console.log(directionChanged);
 	const canvas=document.getElementById("canvas");
 	const ctx=canvas.getContext("2d");
 	ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -771,17 +768,26 @@ function renderObject(){
 	if (connected) {
 		connection.send(JSON.stringify({myNewPosition: {x: me.x, y: me.y}}));
 	}
-	// for (let opponent in others) {
-	// 	if ((others[opponent] === 'hunter') && (colideWithHero(me, others[opponent]))){
-	// 		me.x -= directions.xs;
-	// 		me.y -= directions.ys;
-	// 		connection.send('hunterAteMe');
-	// 	}
-	// 	else if (colideWithPlayer(me, others[opponent])) {
-	// 		me.x -= directions.xs;
-	// 		me.y -= directions.ys;
-	// 	}
-	// }
+	for (let opponent in others) {
+		if ((others[opponent].state === 'hunter') && (colideWithHero(me, others[opponent], precision*2))){
+			connection.send(JSON.stringify({playerAteMe: others[opponent], hunterId: opponent,
+				me: me}));
+			me.x -= directions.xs;
+			me.y -= directions.ys;
+			direction = 'none';
+		}
+		else if ((me.state === 'hunter') && (colideWithPlayer(me, others[opponent], precision*2))){
+			connection.send(JSON.stringify({iAte: others[opponent], huntedId: opponent,
+				me: me}));
+			me.x -= directions.xs;
+			me.y -= directions.ys;
+		}
+		else if (colideWithPlayer(me, others[opponent], precision*2)) {
+			me.x -= directions.xs;
+			me.y -= directions.ys;
+			direction = 'none';
+		}
+	}
 
 	const myImage = new Image();
 	myImage.src = me.state === 'hunter' ? '../images/me-hero.jpg' : '../images/me.jpg';
@@ -793,12 +799,7 @@ function renderObject(){
 		const opImage = new Image();
 		opImage.src = others[opponent].state === 'hunter' ? '../images/hero.jpg' : '../images/pac.jpg';
 		opImage.onload = function() {
-			if (!opponentsPositions[opponent]) {
 			ctx.drawImage(opImage, others[opponent].x, others[opponent].y);
-			}
-			else {
-				ctx.drawImage(opImage, opponentsPositions[opponent].x, opponentsPositions[opponent].y);
-			}
 		}
 	}
 
@@ -807,9 +808,47 @@ function renderObject(){
 	}
 };
 
+export const changeLeader = (newLeaderId) => {
+	if (me.state === 'hunter') {
+		me.state = 'hunted';
+	}
+	else for (let other in others) {
+	  if (others[other].state === 'hunter') {
+	   others[other].state === 'hunted';
+	   break;
+	  }
+	}
+	if (newLeaderId === myId) {
+		me.state = 'hunter';
+	}
+  for (let other in others) {
+    if (other === newLeaderId) {
+	  	others[other].state === 'hunter';
+	    break;
+    }
+  }
+
+}
+
 export const getNewPositions = (newPosition, newPositionId) => {
-	opponentsPositions[newPositionId] = newPosition;
+	others[newPositionId] && (others[newPositionId].x = newPosition.x);
+	others[newPositionId] && (others[newPositionId].y = newPosition.y);
 };
+
+export const getNewScoresAndRespawn = (newDataForHunter, newDataForHunted, hunterId, huntedId) => {
+	if (others[hunterId] && others[huntedId]) {
+		others[hunterId] = newDataForHunter;
+		others[huntedId] = newDataForHunted;
+	}
+	else if (others[hunterId]) {
+		others[hunterId] = newDataForHunter;
+		me = newDataForHunted;
+	}
+	else if (others[huntedId]) {
+		others[huntedId] = newDataForHunted;
+		me = newDataForHunter;
+	}
+}
 
 export const getInitialConfiguration = (initialCoords) => {
 	if (initialCoords !== undefined) {

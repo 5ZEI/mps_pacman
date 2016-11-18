@@ -84,13 +84,9 @@ var lobbyMap2Id = 0;
 var usersToStart = 3;
 var maxUsersPlaying = 8;
 // initial coordinates for map1 (8 players max)
-var initialConfigMap1 = [{ x: 0.5, y: 0.5 }, { x: 521.5, y: 0.5 }, { x: 0.5, y: 400.5 }, { x: 521.5, y: 584.5 },
-// TODO: COMPLETE LAST 4
-{ x: 521.5, y: 400.5 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }];
+var initialConfigMap1 = [{ x: 0.5, y: 0.5 }, { x: 521.5, y: 0.5 }, { x: 0.5, y: 400.5 }, { x: 521.5, y: 584.5 }, { x: 521.5, y: 400.5 }, { x: 251.5, y: 281 }, { x: 234, y: 107 }, { x: 472, y: 226 }];
 // intitial coordinates for map2 (8 players max)
-var initialConfigMap2 = [{ x: 0.5, y: 0.5 }, { x: 521.5, y: 0.5 }, { x: 0.5, y: 400.5 }, { x: 521.5, y: 584.5 },
-// TODO: COMPLETE LAST 4
-{ x: 521.5, y: 400.5 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }];
+var initialConfigMap2 = [{ x: 0.5, y: 0.5 }, { x: 521.5, y: 0.5 }, { x: 0.5, y: 400.5 }, { x: 521.5, y: 584.5 }, { x: 521.5, y: 400.5 }, { x: 272, y: 183 }, { x: 463, y: 326 }, { x: 173, y: 523 }];
 
 // put logic here to detect whether the specified origin is allowed.
 function originIsAllowed(origin) {
@@ -119,7 +115,7 @@ function broadcast(data) {
 
 // Send a message to a connection by its connectionID
 function sendToConnectionId(connectionID, data) {
-  console.log("[SEND] Sending to [", connectionID, ", " /*, connections[connectionID].user */, " ]  this data: ", data);
+  // console.log("[SEND] Sending to [", connectionID, ", "/*, connections[connectionID].user */, " ]  this data: ", data);
   var connection = connections[connectionID];
   if (connection && connection.connected) {
     connection.send(data);
@@ -182,7 +178,10 @@ function sendPlayersInitPositions(userRequested, lobby, map) {
           name: playerName,
           state: 'hunter'/'hunted',
           x: Number,
-          y: Number
+          y: Number,
+          width: Number,
+          height: Number
+          score: Number,
         }
       */
       players[id] = {};
@@ -196,6 +195,7 @@ function sendPlayersInitPositions(userRequested, lobby, map) {
       players[id].y = map === 'map1' ? initialConfigMap1[count].y : initialConfigMap2[count].y;
       players[id].width = 30;
       players[id].height = 30;
+      players[id].score = 0;
 
       count++;
     }
@@ -234,49 +234,31 @@ wss.on('request', function (request) {
   connection.on('message', function (message) {
     if (message.type === 'utf8') {
       var messageData = message.utf8Data;
-      console.log();
-      console.log('[RECV] Received from client: ' + messageData + " id: " + connection.id);
-      console.log("========================================================");
+      // console.log();
+      // console.log('[RECV] Received from client: ' + messageData + " id: " + connection.id);
+      // console.log("========================================================");
 
-      // this means that we received a new direction
-      // if (messageData.split('#').length > 1) {
-      //   const newMessageSplit = messageData.split('#');
-      //   for (let id in lobbyNamesMap1) {
-      //     const keys = Object.keys(lobbyNamesMap1[id]);
-      //     const index = keys.indexOf(String(connection.id));
-
-      //     if (index > -1) {
-      //       for (let nameId in lobbyNamesMap1[id]) {
-      //         if (nameId !== String(connection.id) && nameId !== 'state') {
-      //           sendToConnectionId(nameId, JSON.stringify({newDirection: newMessageSplit[1], newDirectionId: connection.id}));
-      //         }
-      //       }
-      //       break;
-      //     }
-      //   }
-      //   for (let id in lobbyNamesMap2) {
-      //     const keys = Object.keys(lobbyNamesMap2[id]);
-      //     const index = keys.indexOf(String(connection.id));
-
-      //     if (index > -1) {
-      //       for (let nameId in lobbyNamesMap2[id]) {
-      //         if (nameId !== connection.id && id !== 'state') {
-      //           sendToConnectionId(nameId, JSON.stringify({newDirection: newMessageSplit[1], newDirectionId: connection.id}));
-      //         }
-      //       }
-      //       break;
-      //     }
-      //   }
-      // }
-
-      // client asks for initial positions
-      if (messageData === 'gimmePlayersPositions') {
+      // client asks for hero change
+      if (messageData.split('#').length > 1) {
+        var dataReceived = messageData.split('#');
         for (var id in lobbyNamesMap1) {
           var keys = Object.keys(lobbyNamesMap1[id]);
           var index = keys.indexOf(String(connection.id));
 
           if (index > -1) {
-            sendPlayersInitPositions(connection.id, lobbyNamesMap1[id], 'map1');
+            var xy = Math.floor(Math.random() * keys.length);
+            if (dataReceived[1] === 'me' || lobbyNamesMap1[id][keys[xy]] === Number(dataReceived[1])) {
+              if (keys[xy] === connection.id) {
+                xy++;
+                if (xy == 8) {
+                  xy -= 2;
+                }
+              }
+            }
+            keys[xy] === 'state' && (xy -= 1);
+            xy === 8 && (xy -= 1);
+            console.log(lobbyNamesMap1[id][keys[xy]], keys[xy]);
+            sendMessageToPlayersInLobby(lobbyNamesMap1[id], 'newLeader#' + lobbyNamesMap1[id][keys[xy]]);
             break;
           }
         }
@@ -285,20 +267,31 @@ wss.on('request', function (request) {
           var _index = _keys.indexOf(String(connection.id));
 
           if (_index > -1) {
-            sendPlayersInitPositions(connection.id, lobbyNamesMap2[_id3], 'map2');
+            var _xy = Math.floor(Math.random() * _keys.length);
+            if (dataReceived[1] === 'me' || lobbyNamesMap2[_id3][_keys[_xy]] === Number(dataReceived[1])) {
+              if (_keys[_xy] === connection.id) {
+                _xy++;
+                if (_xy == 8) {
+                  _xy -= 2;
+                }
+              }
+            }
+            _keys[_xy] === 'started' && (_xy -= 1);
+            _xy === 8 && (_xy -= 1);
+            sendMessageToPlayersInLobby(lobbyNamesMap2[_id3], 'newLeader#' + lobbyNamesMap2[_id3][_keys[_xy]]);
             break;
           }
         }
       }
 
-      // client notifies server that the game is over
-      if (messageData === 'gameOver') {
+      // client asks for initial positions
+      if (messageData === 'gimmePlayersPositions') {
         for (var _id4 in lobbyNamesMap1) {
           var _keys2 = Object.keys(lobbyNamesMap1[_id4]);
           var _index2 = _keys2.indexOf(String(connection.id));
 
           if (_index2 > -1) {
-            delete lobbyNamesMap1[_id4];
+            sendPlayersInitPositions(connection.id, lobbyNamesMap1[_id4], 'map1');
             break;
           }
         }
@@ -307,7 +300,29 @@ wss.on('request', function (request) {
           var _index3 = _keys3.indexOf(String(connection.id));
 
           if (_index3 > -1) {
-            delete lobbyNamesMap2[_id5];
+            sendPlayersInitPositions(connection.id, lobbyNamesMap2[_id5], 'map2');
+            break;
+          }
+        }
+      }
+
+      // client notifies server that the game is over
+      if (messageData === 'gameOver') {
+        for (var _id6 in lobbyNamesMap1) {
+          var _keys4 = Object.keys(lobbyNamesMap1[_id6]);
+          var _index4 = _keys4.indexOf(String(connection.id));
+
+          if (_index4 > -1) {
+            delete lobbyNamesMap1[_id6];
+            break;
+          }
+        }
+        for (var _id7 in lobbyNamesMap2) {
+          var _keys5 = Object.keys(lobbyNamesMap2[_id7]);
+          var _index5 = _keys5.indexOf(String(connection.id));
+
+          if (_index5 > -1) {
+            delete lobbyNamesMap2[_id7];
             break;
           }
         }
@@ -316,22 +331,22 @@ wss.on('request', function (request) {
       // client notifies the server that the game is starting
       if (messageData === 'gameStarting') {
         if (userMap === 'map1') {
-          for (var _id6 in lobbyNamesMap1) {
-            var _keys4 = Object.keys(lobbyNamesMap1[_id6]);
-            var _index4 = _keys4.indexOf(String(connection.id));
+          for (var _id8 in lobbyNamesMap1) {
+            var _keys6 = Object.keys(lobbyNamesMap1[_id8]);
+            var _index6 = _keys6.indexOf(String(connection.id));
 
-            if (_index4 > -1) {
-              lobbyNamesMap1[_id6]['state'] = 'started';
+            if (_index6 > -1) {
+              lobbyNamesMap1[_id8]['state'] = 'started';
               break;
             }
           }
         } else if (userMap === 'map2') {
-          for (var _id7 in lobbyNamesMap2) {
-            var _keys5 = Object.keys(lobbyNamesMap2[_id7]);
-            var _index5 = _keys5.indexOf(String(connection.id));
-            if (_index5 > -1) {
-              if (_index5 > -1) {
-                lobbyNamesMap2[_id7]['state'] = 'started';
+          for (var _id9 in lobbyNamesMap2) {
+            var _keys7 = Object.keys(lobbyNamesMap2[_id9]);
+            var _index7 = _keys7.indexOf(String(connection.id));
+            if (_index7 > -1) {
+              if (_index7 > -1) {
+                lobbyNamesMap2[_id9]['state'] = 'started';
                 break;
               }
             }
@@ -341,28 +356,28 @@ wss.on('request', function (request) {
 
       if (messageData === 'ready') {
         if (userMap === 'map1') {
-          for (var _id8 in lobbyNamesMap1) {
-            var _keys6 = Object.keys(lobbyNamesMap1[_id8]);
-            var _index6 = _keys6.indexOf(String(connection.id));
-            if (_index6 > -1) {
-              if (!usersClickedReadyMap1[_id8]) {
-                usersClickedReadyMap1[_id8] = {};
+          for (var _id10 in lobbyNamesMap1) {
+            var _keys8 = Object.keys(lobbyNamesMap1[_id10]);
+            var _index8 = _keys8.indexOf(String(connection.id));
+            if (_index8 > -1) {
+              if (!usersClickedReadyMap1[_id10]) {
+                usersClickedReadyMap1[_id10] = {};
               }
-              usersClickedReadyMap1[_id8][connection.id] = connection.user;
-              sendPlayersReadyInLobby(lobbyNamesMap1[_id8], usersClickedReadyMap1[_id8]);
+              usersClickedReadyMap1[_id10][connection.id] = connection.user;
+              sendPlayersReadyInLobby(lobbyNamesMap1[_id10], usersClickedReadyMap1[_id10]);
               break;
             }
           }
         } else if (userMap === 'map2') {
-          for (var _id9 in lobbyNamesMap2) {
-            var _keys7 = Object.keys(lobbyNamesMap2[_id9]);
-            var _index7 = _keys7.indexOf(String(connection.id));
-            if (_index7 > -1) {
-              if (!usersClickedReadyMap2[_id9]) {
-                usersClickedReadyMap2[_id9] = {};
+          for (var _id11 in lobbyNamesMap2) {
+            var _keys9 = Object.keys(lobbyNamesMap2[_id11]);
+            var _index9 = _keys9.indexOf(String(connection.id));
+            if (_index9 > -1) {
+              if (!usersClickedReadyMap2[_id11]) {
+                usersClickedReadyMap2[_id11] = {};
               }
-              usersClickedReadyMap2[_id9][connection.id] = connection.user;
-              sendPlayersReadyInLobby(lobbyNamesMap2[_id9], usersClickedReadyMap2[_id9]);
+              usersClickedReadyMap2[_id11][connection.id] = connection.user;
+              sendPlayersReadyInLobby(lobbyNamesMap2[_id11], usersClickedReadyMap2[_id11]);
               break;
             }
           }
@@ -374,20 +389,20 @@ wss.on('request', function (request) {
         alreadyReceived = false;
         if (userMap === 'map1') {
           // remove him from the lobby that he is in (check in all of the lobbies) and notify others
-          for (var _id10 in lobbyNamesMap1) {
-            var _keys8 = Object.keys(lobbyNamesMap1[_id10]);
-            var _index8 = _keys8.indexOf(String(connection.id));
-            if (_index8 > -1) {
-              usersReadyMap1[_id10]--;
-              usersClickedReadyMap1[_id10] && delete usersClickedReadyMap1[_id10][_keys8[_index8]];
-              delete lobbyNamesMap1[_id10][_keys8[_index8]];
-              if (lobbyNamesMap1[_id10]['state'] === 'started' && usersReadyMap1[_id10] < usersToStart) {
-                sendMessageToPlayersInLobby(lobbyNamesMap1[_id10], "cantContinueGame");
-                lobbyNamesMap1[_id10]['state'] = 'waiting';
+          for (var _id12 in lobbyNamesMap1) {
+            var _keys10 = Object.keys(lobbyNamesMap1[_id12]);
+            var _index10 = _keys10.indexOf(String(connection.id));
+            if (_index10 > -1) {
+              usersReadyMap1[_id12]--;
+              usersClickedReadyMap1[_id12] && delete usersClickedReadyMap1[_id12][_keys10[_index10]];
+              delete lobbyNamesMap1[_id12][_keys10[_index10]];
+              if (lobbyNamesMap1[_id12]['state'] === 'started' && usersReadyMap1[_id12] < usersToStart) {
+                sendMessageToPlayersInLobby(lobbyNamesMap1[_id12], "cantContinueGame");
+                lobbyNamesMap1[_id12]['state'] = 'waiting';
               }
               sendToConnectionId(connection.id, "youLeft");
-              sendPlayersInLobby(lobbyNamesMap1[_id10], usersReadyMap1[_id10] >= usersToStart ? true : false);
-              sendPlayersReadyInLobby(lobbyNamesMap1[_id10], usersClickedReadyMap1[_id10]);
+              sendPlayersInLobby(lobbyNamesMap1[_id12], usersReadyMap1[_id12] >= usersToStart ? true : false);
+              sendPlayersReadyInLobby(lobbyNamesMap1[_id12], usersClickedReadyMap1[_id12]);
               break;
             }
           }
@@ -395,20 +410,20 @@ wss.on('request', function (request) {
 
         if (userMap === 'map2') {
           // same for map 2
-          for (var _id11 in lobbyNamesMap2) {
-            var _keys9 = Object.keys(lobbyNamesMap2[_id11]);
-            var _index9 = _keys9.indexOf(String(connection.id));
-            if (_index9 > -1) {
-              usersReadyMap2[_id11]--;
-              usersClickedReadyMap2[_id11] && delete usersClickedReadyMap2[_id11][_keys9[_index9]];
-              delete lobbyNamesMap2[_id11][_keys9[_index9]];
-              if (lobbyNamesMap2[_id11]['state'] === 'started' && usersReadyMap2[_id11] < usersToStart) {
-                sendMessageToPlayersInLobby(lobbyNamesMap2[_id11], "cantContinueGame");
-                lobbyNamesMap2[_id11]['state'] = 'waiting';
+          for (var _id13 in lobbyNamesMap2) {
+            var _keys11 = Object.keys(lobbyNamesMap2[_id13]);
+            var _index11 = _keys11.indexOf(String(connection.id));
+            if (_index11 > -1) {
+              usersReadyMap2[_id13]--;
+              usersClickedReadyMap2[_id13] && delete usersClickedReadyMap2[_id13][_keys11[_index11]];
+              delete lobbyNamesMap2[_id13][_keys11[_index11]];
+              if (lobbyNamesMap2[_id13]['state'] === 'started' && usersReadyMap2[_id13] < usersToStart) {
+                sendMessageToPlayersInLobby(lobbyNamesMap2[_id13], "cantContinueGame");
+                lobbyNamesMap2[_id13]['state'] = 'waiting';
               }
               sendToConnectionId(connection.id, "youLeft");
-              sendPlayersInLobby(lobbyNamesMap2[_id11], usersReadyMap2[_id11] >= usersToStart ? true : false);
-              sendPlayersReadyInLobby(lobbyNamesMap2[_id11], usersClickedReadyMap2[_id11]);
+              sendPlayersInLobby(lobbyNamesMap2[_id13], usersReadyMap2[_id13] >= usersToStart ? true : false);
+              sendPlayersReadyInLobby(lobbyNamesMap2[_id13], usersClickedReadyMap2[_id13]);
               break;
             }
           }
@@ -443,13 +458,13 @@ wss.on('request', function (request) {
                 sendPlayersInLobby(lobbyNamesMap1[lobbyMap1Id], false);
               }
               // else search all lobbies for an open spot for this user
-              else for (var _id12 in lobbyNamesMap1) {
-                  if (usersReadyMap1[_id12] < maxUsersPlaying && lobbyNamesMap1[_id12]['state'] === 'waiting') {
+              else for (var _id14 in lobbyNamesMap1) {
+                  if (usersReadyMap1[_id14] < maxUsersPlaying && lobbyNamesMap1[_id14]['state'] === 'waiting') {
                     found = true;
-                    lobbyNamesMap1[_id12][connection.id] = data.user;
-                    usersReadyMap1[_id12]++;
-                    lobbyHeWasPutIn = _id12;
-                    sendPlayersInLobby(lobbyNamesMap1[_id12], usersReadyMap1[_id12] >= usersToStart ? true : false);
+                    lobbyNamesMap1[_id14][connection.id] = data.user;
+                    usersReadyMap1[_id14]++;
+                    lobbyHeWasPutIn = _id14;
+                    sendPlayersInLobby(lobbyNamesMap1[_id14], usersReadyMap1[_id14] >= usersToStart ? true : false);
                     break;
                   }
                 }
@@ -474,13 +489,13 @@ wss.on('request', function (request) {
                   lobbyHeWasPutIn = lobbyMap2Id;
                   lobbyNamesMap2[lobbyMap2Id]['state'] = 'waiting';
                   sendPlayersInLobby(lobbyNamesMap2[lobbyMap2Id], false);
-                } else for (var _id13 in lobbyNamesMap2) {
-                  if (usersReadyMap2[_id13] < maxUsersPlaying && lobbyNamesMap2[_id13]['state'] === 'waiting') {
+                } else for (var _id15 in lobbyNamesMap2) {
+                  if (usersReadyMap2[_id15] < maxUsersPlaying && lobbyNamesMap2[_id15]['state'] === 'waiting') {
                     found = true;
-                    lobbyNamesMap2[_id13][connection.id] = data.user;
-                    usersReadyMap2[_id13]++;
-                    lobbyHeWasPutIn = _id13;
-                    sendPlayersInLobby(lobbyNamesMap2[_id13], usersReadyMap2[_id13] >= usersToStart ? true : false);
+                    lobbyNamesMap2[_id15][connection.id] = data.user;
+                    usersReadyMap2[_id15]++;
+                    lobbyHeWasPutIn = _id15;
+                    sendPlayersInLobby(lobbyNamesMap2[_id15], usersReadyMap2[_id15] >= usersToStart ? true : false);
                     break;
                   }
                 }
@@ -504,12 +519,12 @@ wss.on('request', function (request) {
         }
         // this means that the client sends his new position
         if (data.myNewPosition) {
-          for (var _id14 in lobbyNamesMap1) {
-            var _keys10 = Object.keys(lobbyNamesMap1[_id14]);
-            var _index10 = _keys10.indexOf(String(connection.id));
+          for (var _id16 in lobbyNamesMap1) {
+            var _keys12 = Object.keys(lobbyNamesMap1[_id16]);
+            var _index12 = _keys12.indexOf(String(connection.id));
 
-            if (_index10 > -1) {
-              for (var nameId in lobbyNamesMap1[_id14]) {
+            if (_index12 > -1) {
+              for (var nameId in lobbyNamesMap1[_id16]) {
                 if (nameId !== String(connection.id) && nameId !== 'state') {
                   sendToConnectionId(nameId, JSON.stringify({ newPosition: { x: data.myNewPosition.x, y: data.myNewPosition.y }, newPositionId: connection.id }));
                 }
@@ -517,16 +532,88 @@ wss.on('request', function (request) {
               break;
             }
           }
-          for (var _id15 in lobbyNamesMap2) {
-            var _keys11 = Object.keys(lobbyNamesMap2[_id15]);
-            var _index11 = _keys11.indexOf(String(connection.id));
+          for (var _id17 in lobbyNamesMap2) {
+            var _keys13 = Object.keys(lobbyNamesMap2[_id17]);
+            var _index13 = _keys13.indexOf(String(connection.id));
 
-            if (_index11 > -1) {
-              for (var _nameId in lobbyNamesMap2[_id15]) {
-                if (_nameId !== connection.id && _id15 !== 'state') {
+            if (_index13 > -1) {
+              for (var _nameId in lobbyNamesMap2[_id17]) {
+                if (_nameId !== connection.id && _id17 !== 'state') {
                   sendToConnectionId(_nameId, JSON.stringify({ newPosition: { x: data.myNewPosition.x, y: data.myNewPosition.y }, newPositionId: connection.id }));
                 }
               }
+              break;
+            }
+          }
+        }
+        // client notifies server that a hunter ate him
+        if (data.playerAteMe && data.hunterId && data.me) {
+          var newDataForHunter = data.playerAteMe;
+          newDataForHunter.score++;
+          var newDataForHunted = data.me;
+          newDataForHunted.score >= 0 && newDataForHunted.score--;
+
+          for (var _id18 in lobbyNamesMap1) {
+            var _keys14 = Object.keys(lobbyNamesMap1[_id18]);
+            var _index14 = _keys14.indexOf(String(connection.id));
+
+            if (_index14 > -1) {
+              var _xy2 = Math.floor(Math.random() * Object.keys(lobbyNamesMap1[_id18]).length);
+              _xy2 < 5 && (_xy2 += 3);
+              _xy2 === 8 && (_xy2 -= 1);
+              newDataForHunted.x = initialConfigMap1[_xy2].x;
+              newDataForHunted.y = initialConfigMap1[_xy2].y;
+              sendMessageToPlayersInLobby(lobbyNamesMap1[_id18], JSON.stringify({ newDataForHunter: newDataForHunter, newDataForHunted: newDataForHunted, hunterId: data.hunterId, huntedId: connection.id }));
+              break;
+            }
+          }
+          for (var _id19 in lobbyNamesMap2) {
+            var _keys15 = Object.keys(lobbyNamesMap2[_id19]);
+            var _index15 = _keys15.indexOf(String(connection.id));
+
+            if (_index15 > -1) {
+              var _xy3 = Math.floor(Math.random() * Object.keys(lobbyNamesMap2[_id19]).length);
+              _xy3 < 5 && (_xy3 += 3);
+              _xy3 === 8 && (_xy3 -= 1);
+              newDataForHunted.x = initialConfigMap2[_xy3].x;
+              newDataForHunted.y = initialConfigMap2[_xy3].y;
+              sendMessageToPlayersInLobby(lobbyNamesMap2[_id19], JSON.stringify({ newDataForHunter: newDataForHunter, newDataForHunted: newDataForHunted, hunterId: data.hunterId, huntedId: connection.id }));
+              break;
+            }
+          }
+        }
+        // client notifies server that he ate a hunted
+        if (data.iAte && data.huntedId && data.me) {
+          var _newDataForHunter = data.me;
+          _newDataForHunter.score++;
+          var _newDataForHunted = data.iAte;
+          _newDataForHunted.score > 0 && _newDataForHunted.score--;
+
+          for (var _id20 in lobbyNamesMap1) {
+            var _keys16 = Object.keys(lobbyNamesMap1[_id20]);
+            var _index16 = _keys16.indexOf(String(connection.id));
+
+            if (_index16 > -1) {
+              var _xy4 = Math.floor(Math.random() * Object.keys(lobbyNamesMap1[_id20]).length);
+              _xy4 < 5 && (_xy4 += 3);
+              _xy4 === 8 && (_xy4 -= 1);
+              _newDataForHunted.x = initialConfigMap1[_xy4].x;
+              _newDataForHunted.y = initialConfigMap1[_xy4].y;
+              sendMessageToPlayersInLobby(lobbyNamesMap1[_id20], JSON.stringify({ newDataForHunter: _newDataForHunter, newDataForHunted: _newDataForHunted, hunterId: connection.id, huntedId: data.huntedId }));
+              break;
+            }
+          }
+          for (var _id21 in lobbyNamesMap2) {
+            var _keys17 = Object.keys(lobbyNamesMap2[_id21]);
+            var _index17 = _keys17.indexOf(String(connection.id));
+
+            if (_index17 > -1) {
+              var _xy5 = Math.floor(Math.random() * Object.keys(lobbyNamesMap2[_id21]).length);
+              _xy5 < 5 && (_xy5 += 3);
+              _xy5 === 8 && (_xy5 -= 1);
+              _newDataForHunted.x = initialConfigMap2[_xy5].x;
+              _newDataForHunted.y = initialConfigMap2[_xy5].y;
+              sendMessageToPlayersInLobby(lobbyNamesMap2[_id21], JSON.stringify({ newDataForHunter: _newDataForHunter, newDataForHunted: _newDataForHunted, hunterId: data.hunterId, huntedId: connection.id }));
               break;
             }
           }
@@ -569,19 +656,19 @@ wss.on('request', function (request) {
     }
 
     // search him in both lobbies
-    for (var _id16 in lobbyNamesMap2) {
-      var _keys12 = Object.keys(lobbyNamesMap2[_id16]);
-      var _index12 = _keys12.indexOf(String(connection.id));
-      if (_index12 > -1) {
-        usersReadyMap2[_id16]--;
-        delete lobbyNamesMap2[_id16][_keys12[_index12]];
-        usersClickedReadyMap2[_id16] && delete usersClickedReadyMap2[_id16][_keys12[_index12]];
-        if (lobbyNamesMap2[_id16]['state'] === 'started' && usersReadyMap2[_id16] < usersToStart) {
-          sendMessageToPlayersInLobby(lobbyNamesMap2[_id16], "cantContinueGame");
-          lobbyNamesMap2[_id16]['state'] = 'waiting';
+    for (var _id22 in lobbyNamesMap2) {
+      var _keys18 = Object.keys(lobbyNamesMap2[_id22]);
+      var _index18 = _keys18.indexOf(String(connection.id));
+      if (_index18 > -1) {
+        usersReadyMap2[_id22]--;
+        delete lobbyNamesMap2[_id22][_keys18[_index18]];
+        usersClickedReadyMap2[_id22] && delete usersClickedReadyMap2[_id22][_keys18[_index18]];
+        if (lobbyNamesMap2[_id22]['state'] === 'started' && usersReadyMap2[_id22] < usersToStart) {
+          sendMessageToPlayersInLobby(lobbyNamesMap2[_id22], "cantContinueGame");
+          lobbyNamesMap2[_id22]['state'] = 'waiting';
         }
-        sendPlayersInLobby(lobbyNamesMap2[_id16], usersReadyMap2[_id16] >= usersToStart ? true : false);
-        sendPlayersReadyInLobby(lobbyNamesMap2[_id16], usersClickedReadyMap2[_id16]);
+        sendPlayersInLobby(lobbyNamesMap2[_id22], usersReadyMap2[_id22] >= usersToStart ? true : false);
+        sendPlayersReadyInLobby(lobbyNamesMap2[_id22], usersClickedReadyMap2[_id22]);
         break;
       }
     }

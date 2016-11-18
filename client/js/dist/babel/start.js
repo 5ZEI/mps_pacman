@@ -60,6 +60,8 @@ function waitForUsers() {
         makeWaitingNice("Waiting for players...".length);
       }
 
+      if (event.data.split("#") > 2 && event.data.split('#')[1] === 'newLeader') {}
+
       if (IsJsonString(event.data)) {
         (function () {
           var _JSON$parse = JSON.parse(event.data),
@@ -69,7 +71,11 @@ function waitForUsers() {
               usersReady = _JSON$parse.usersReady,
               usersInitialConfig = _JSON$parse.usersInitialConfig,
               newPosition = _JSON$parse.newPosition,
-              newPositionId = _JSON$parse.newPositionId;
+              newPositionId = _JSON$parse.newPositionId,
+              newDataForHunter = _JSON$parse.newDataForHunter,
+              newDataForHunted = _JSON$parse.newDataForHunted,
+              hunterId = _JSON$parse.hunterId,
+              huntedId = _JSON$parse.huntedId;
 
           var count = 0;
           var sameName = 0;
@@ -90,6 +96,10 @@ function waitForUsers() {
 
           if (newPosition !== undefined && newPositionId !== undefined) {
             (0, _game.getNewPositions)(newPosition, newPositionId);
+          }
+
+          if (newDataForHunted !== undefined && newDataForHunter !== undefined && hunterId !== undefined && huntedId !== undefined) {
+            (0, _game.getNewScoresAndRespawn)(newDataForHunter, newDataForHunted, Number(hunterId), huntedId);
           }
 
           if (usersPlaying) {
@@ -145,12 +155,27 @@ function waitForUsers() {
                   document.getElementById("lobby").style.display = 'none';
                   document.getElementById("game").style.display = 'initial';
                   document.getElementById("wait").innerHTML = "Waiting for players...";
-                  setTimeout(function () {
-                    document.getElementById("game").style.display = 'none';
-                    document.getElementById("gameover").style.display = 'initial';
-                    connection.send("gameOver");
+                  var changedTimes = 0;
+                  var interval = setInterval(function () {
+                    changedTimes++;
+                    console.log(changedTimes);
+                    if (me.state === 'hunter') {
+                      connection.send("changeHero#me");
+                    } else for (var other in others) {
+                      if (others[other].state === 'hunter') {
+                        console.log('other');
+                        connection.send('changeHero#' + other);
+                        break;
+                      }
+                    }
+                    if (changedTimes === 9) {
+                      clearInterval(interval);
+                      document.getElementById("game").style.display = 'none';
+                      document.getElementById("gameover").style.display = 'initial';
+                      connection.send("gameOver");
+                    }
                     // DISPLAY SCORE
-                  }, 180000);
+                  }, 1500);
                 }, /*10000*/1000);
               }
             }

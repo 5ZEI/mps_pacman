@@ -18,26 +18,19 @@
 			// mapChosen => the map that i've chosed
 		  var usersJoined, usersReadyToPlay, readyState, playersInGame, myId, user, mapChosen;
 		  var scores = {};
+		  var others = {};
+			var me = {};
 		  /*
 		  	this will be an object of objects of format:
 		  	playerId: {
-		  		name: playerName
-					state: 'hunter'/'hunted',
-					direction: 'left'||'right'||'up'||'down',
-					score: Number
-		  	}
-		  */
-		  var playerObjects = {};
-		  /*
-		  	this will be an object of objects of format:
-		  	playerId: {
-		  		name: playerName,
-		  		state: 'hunter'/'hunted',
-					x: Number,
-					y: Number,
-					height: Number,
-					width: Number
-		  	}
+          name: playerName,
+          state: 'hunter'/'hunted',
+          x: Number,
+          y: Number,
+          width: Number,
+          height: Number
+          score: Number,
+        }
 		  */
 		  var initialConfig = {};
 
