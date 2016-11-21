@@ -63,11 +63,15 @@ let usersClickedReadyMap1 = {};
 let usersClickedReadyMap2 = {};
 let lobbyNamesMap1 = {};
 let lobbyNamesMap2 = {};
+let hunterSetForGameMap1 = {};
+let hunterSetForGameMap2 = {};
 let lobbyMap1Id = 0;
 let lobbyMap2Id = 0;
 // configurations for users per game;
 const usersToStart = 3;
 const maxUsersPlaying = 8;
+// 20 seconds per hunter
+const hunterChangeTime = 20000;
 // initial coordinates for map1 (8 players max)
 const initialConfigMap1 = [
   {x: 0.5, y: 0.5},
@@ -90,6 +94,15 @@ const initialConfigMap2 = [
   {x: 463, y: 326},
   {x: 173, y: 523}
 ];
+// how many times the hunter changes in this game
+let hunterChangedCounterMap1 = {};
+let hunterChangedCounterMap2 = {};
+// save the currentHunter
+let currentHunterMap1 = {};
+let currentHunterMap2 = {};
+// the interval for the hunter change (so we can clear it)
+let changeHunterIntervalMap1 = {};
+let changeHunterIntervalMap2 = {};
 
 // put logic here to detect whether the specified origin is allowed.
 function originIsAllowed(origin) {
@@ -143,36 +156,50 @@ function sendPlayersInLobby(lobby, ready) {
   }
 }
 
+// sends a custom message to the players in a lobby
 function sendMessageToPlayersInLobby(lobby, message) {
+
   for (let id in lobby) {
     if (id !== 'state'){
+      console.log("SENDING TO: ", id, " DATA: ", message);
       sendToConnectionId(id, message);
     }
   }
+  console.log("=================================");
 }
 
+// sends the players that clicked the ready button to all of the players in the lobby
 function sendPlayersReadyInLobby(lobby, ready) {
   if (!ready) {
     return;
   }
 
   let players = [];
+  let playerIds = [];
 
   for (let id in ready) {
     players.push(ready[id]);
+    playerIds.push(id);
   }
 
   for (let id in lobby) {
     if (id !== 'state'){
-      sendToConnectionId(id, JSON.stringify({usersReady: players}))
+      sendToConnectionId(id, JSON.stringify({usersReady: players, usersReadyIds: playerIds, myConnection: id}));
     }
   }
 }
 
-function sendPlayersInitPositions(userRequested, lobby, map) {
+// sends the players initial possitions on the map
+function sendPlayersInitPositions(userRequested, lobby, lobbyId,  map) {
   const players = {};
   let count = 0;
   let initialHunterId = Object.keys(lobby).length - 2;
+  if (map === 'map1'){
+    currentHunterMap1[lobbyId] = initialHunterId;
+  }
+  else if (map === 'map2'){
+    currentHunterMap2[lobbyId] = initialHunterId;
+  }
   for (let id in lobby) {
     if (id !== 'state'){
       /*
@@ -242,61 +269,36 @@ wss.on('request', function(request) {
       // console.log('[RECV] Received from client: ' + messageData + " id: " + connection.id);
       // console.log("========================================================");
 
-      // client asks for hero change
-      if (messageData.split('#').length > 1) {
-        const dataReceived = messageData.split('#');
-        for (let id in lobbyNamesMap1) {
-          const keys = Object.keys(lobbyNamesMap1[id]);
-          const index = keys.indexOf(String(connection.id));
-
-          if (index > -1) {
-            let xy = Math.floor(Math.random() * keys.length);
-            if (dataReceived[1] === 'me' || lobbyNamesMap1[id][keys[xy]] === Number(dataReceived[1])) {
-              if (keys[xy] === connection.id) {
-                xy++;
-                if (xy==8) {
-                  xy-=2;
-                }
-              }
-            }
-            (keys[xy] === 'state') && (xy-=1);
-            (xy === 8) && (xy-=1);
-            console.log(lobbyNamesMap1[id][keys[xy]], keys[xy]);
-            sendMessageToPlayersInLobby(lobbyNamesMap1[id], `newLeader#${lobbyNamesMap1[id][keys[xy]]}`);
-            break;
-          }
-        }
-        for (let id in lobbyNamesMap2) {
-          const keys = Object.keys(lobbyNamesMap2[id]);
-          const index = keys.indexOf(String(connection.id));
-
-         if (index > -1) {
-            let xy = Math.floor(Math.random() * keys.length);
-            if (dataReceived[1] === 'me' || lobbyNamesMap2[id][keys[xy]] === Number(dataReceived[1])) {
-              if (keys[xy] === connection.id) {
-                xy++;
-                if (xy==8) {
-                  xy-=2;
-                }
-              }
-            }
-            (keys[xy] === 'started') && (xy-=1);
-            (xy === 8) && (xy-=1);
-            sendMessageToPlayersInLobby(lobbyNamesMap2[id], `newLeader#${lobbyNamesMap2[id][keys[xy]]}`);
-            break;
-          }
-        }
-      }
-
       // client asks for initial positions
+      // also, here we set the interval for the hunter change each x seconds
       if (messageData === 'gimmePlayersPositions') {
         for (let id in lobbyNamesMap1) {
           const keys = Object.keys(lobbyNamesMap1[id]);
           const index = keys.indexOf(String(connection.id));
 
           if (index > -1) {
-            sendPlayersInitPositions(connection.id, lobbyNamesMap1[id], 'map1');
-            break;
+            sendPlayersInitPositions(connection.id, lobbyNamesMap1[id], id, 'map1');
+            hunterChangedCounterMap1[id] = 0;
+            if (!hunterSetForGameMap1[id]) {
+              hunterSetForGameMap1[id] = {};
+            }
+            console.log('sending player init positions , hunter: ', hunterSetForGameMap1, 'lobbyid: ', id );
+            if (!hunterSetForGameMap1[id][hunterChangedCounterMap1[id]]) {
+              hunterSetForGameMap1[id][hunterChangedCounterMap1[id]] = true;
+              changeHunterIntervalMap1[id] = setInterval(() => {
+                hunterChangedCounterMap1[id]++;
+                if (hunterChangedCounterMap1[id] === 9) {
+                  clearInterval(changeHunterIntervalMap1[id]);
+                }
+                let randomIndex = Math.floor(Math.random() * keys.length);
+                while ( (keys[randomIndex] === 'state') || (keys[randomIndex] === currentHunterMap1[id])) {
+                  randomIndex = Math.floor(Math.random() * keys.length);
+                }
+                currentHunterMap1[id] = keys[randomIndex];
+                sendMessageToPlayersInLobby(lobbyNamesMap1[id], `newLeader#${keys[randomIndex]}`);
+              }, hunterChangeTime);
+              break;
+            }
           }
         }
         for (let id in lobbyNamesMap2) {
@@ -304,8 +306,27 @@ wss.on('request', function(request) {
           const index = keys.indexOf(String(connection.id));
 
           if (index > -1) {
-            sendPlayersInitPositions(connection.id, lobbyNamesMap2[id], 'map2');
-            break;
+            sendPlayersInitPositions(connection.id, lobbyNamesMap2[id], id, 'map2');
+            hunterChangedCounterMap2[id] = 0;
+            if (!hunterSetForGameMap2[id]) {
+              hunterSetForGameMap2[id] = {};
+            }
+            if (!hunterSetForGameMap2[id][hunterChangedCounterMap2[id]]) {
+              hunterSetForGameMap2[id][hunterChangedCounterMap2[id]] = true;
+              changeHunterIntervalMap2[id] = setInterval(() => {
+                hunterChangedCounterMap2[id]++;
+                if (hunterChangedCounterMap2[id] === 9) {
+                  clearInterval(changeHunterIntervalMap2[id]);
+                }
+                let randomIndex = Math.floor(Math.random() * keys.length);
+                while ( (keys[randomIndex] === 'state') || (keys[randomIndex] === currentHunterMap2[id])) {
+                  randomIndex = Math.floor(Math.random() * keys.length);
+                }
+                currentHunterMap2[id] = keys[randomIndex];
+                sendMessageToPlayersInLobby(lobbyNamesMap2[id], `newLeader#${keys[randomIndex]}`);
+              }, hunterChangeTime);
+              break;
+            }
           }
         }
       }
@@ -317,7 +338,13 @@ wss.on('request', function(request) {
           const index = keys.indexOf(String(connection.id));
 
           if (index > -1) {
+            hunterChangedCounterMap1[id] = 0;
+            usersReadyMap1[id] = 0;
+            clearInterval(changeHunterIntervalMap1[id]);
             delete lobbyNamesMap1[id];
+            delete usersClickedReadyMap1[id];
+            delete hunterSetForGameMap1[id];
+            delete changeHunterIntervalMap1[id];
             break;
           }
         }
@@ -326,7 +353,13 @@ wss.on('request', function(request) {
           const index = keys.indexOf(String(connection.id));
 
           if (index > -1) {
+            hunterChangedCounterMap2[id] = 0;
+            usersReadyMap2[id] = 0;
+            clearInterval(changeHunterIntervalMap2[id]);
             delete lobbyNamesMap2[id];
+            delete usersClickedReadyMap2[id];
+            delete hunterSetForGameMap2[id];
+            delete changeHunterIntervalMap2[id];
             break;
           }
         }
@@ -359,6 +392,7 @@ wss.on('request', function(request) {
         }
       }
 
+      // client notifies the server that he clicked the ready button in lobby
       if (messageData === 'ready') {
         if (userMap === 'map1') {
           for (let id in lobbyNamesMap1) {
@@ -369,7 +403,7 @@ wss.on('request', function(request) {
                 usersClickedReadyMap1[id] = {};
               }
               usersClickedReadyMap1[id][connection.id] = connection.user;
-              sendPlayersReadyInLobby(lobbyNamesMap1[id], usersClickedReadyMap1[id]);
+              sendPlayersReadyInLobby(lobbyNamesMap1[id], usersClickedReadyMap1[id], connection.id);
               break;
             }
           }
@@ -383,7 +417,7 @@ wss.on('request', function(request) {
                 usersClickedReadyMap2[id] = {};
               }
               usersClickedReadyMap2[id][connection.id] = connection.user;
-              sendPlayersReadyInLobby(lobbyNamesMap2[id], usersClickedReadyMap2[id]);
+              sendPlayersReadyInLobby(lobbyNamesMap2[id], usersClickedReadyMap2[id], connection.id);
               break;
             }
           }
@@ -429,7 +463,7 @@ wss.on('request', function(request) {
               }
               sendToConnectionId(connection.id, "youLeft");
               sendPlayersInLobby(lobbyNamesMap2[id], (usersReadyMap2[id] >= usersToStart) ? true : false);
-              sendPlayersReadyInLobby(lobbyNamesMap2[id], usersClickedReadyMap2[id]);
+              sendPlayersReadyInLobby(lobbyNamesMap2[id], usersClickedReadyMap2[id], connection.id);
               break;
             }
           }
@@ -518,10 +552,10 @@ wss.on('request', function(request) {
             }
           }
           if (data.map === "map1") {
-            sendPlayersReadyInLobby(lobbyNamesMap1[lobbyHeWasPutIn], usersClickedReadyMap1[lobbyHeWasPutIn])
+            sendPlayersReadyInLobby(lobbyNamesMap1[lobbyHeWasPutIn], usersClickedReadyMap1[lobbyHeWasPutIn], connection.id)
           }
           if (data.map === "map2") {
-            sendPlayersReadyInLobby(lobbyNamesMap2[lobbyHeWasPutIn], usersClickedReadyMap2[lobbyHeWasPutIn])
+            sendPlayersReadyInLobby(lobbyNamesMap2[lobbyHeWasPutIn], usersClickedReadyMap2[lobbyHeWasPutIn], connection.id)
           }
         }
         // this means that the client sends his new position
@@ -558,7 +592,7 @@ wss.on('request', function(request) {
           let newDataForHunter = data.playerAteMe;
           newDataForHunter.score ++;
           let newDataForHunted = data.me;
-          (newDataForHunted.score >= 0) && (newDataForHunted.score--);
+          (newDataForHunted.score > 0) && (newDataForHunted.score--);
 
           for (let id in lobbyNamesMap1) {
             const keys = Object.keys(lobbyNamesMap1[id]);
@@ -589,7 +623,7 @@ wss.on('request', function(request) {
             }
           }
         }
-        // client notifies server that he ate a hunted
+        // client notifies server that he ate a hunted player
         if (data.iAte && data.huntedId && data.me) {
           let newDataForHunter = data.me;
           newDataForHunter.score ++;
@@ -654,12 +688,18 @@ wss.on('request', function(request) {
         usersReadyMap1[id]--;
         delete lobbyNamesMap1[id][keys[index]];
         usersClickedReadyMap1[id] && delete usersClickedReadyMap1[id][keys[index]];
-        if (lobbyNamesMap1[id]['state'] === 'started' && usersReadyMap1[id] < usersToStart) {
-          sendMessageToPlayersInLobby(lobbyNamesMap1[id], "cantContinueGame")
+        if (lobbyNamesMap1[id]['state'] === 'started'/* && usersReadyMap1[id] < usersToStart*/) {
+          sendMessageToPlayersInLobby(lobbyNamesMap1[id], "cantContinueGame");
+          delete hunterSetForGameMap1[id];
+          hunterChangedCounterMap1 = {};
+          currentHunterMap1 = {};
+          // usersClickedReadyMap1[id] = {};
+          clearInterval(changeHunterIntervalMap1[id]);
+          delete changeHunterIntervalMap1[id];
           lobbyNamesMap1[id]['state'] = 'waiting';
         }
         sendPlayersInLobby(lobbyNamesMap1[id], (usersReadyMap1[id] >= usersToStart) ? true : false);
-        sendPlayersReadyInLobby(lobbyNamesMap1[id], usersClickedReadyMap1[id]);
+        sendPlayersReadyInLobby(lobbyNamesMap1[id], usersClickedReadyMap1[id], connection.id);
         break;
       }
     }
@@ -672,12 +712,18 @@ wss.on('request', function(request) {
         usersReadyMap2[id]--;
         delete lobbyNamesMap2[id][keys[index]];
         usersClickedReadyMap2[id] && delete usersClickedReadyMap2[id][keys[index]];
-        if (lobbyNamesMap2[id]['state'] === 'started' && usersReadyMap2[id] < usersToStart) {
-          sendMessageToPlayersInLobby(lobbyNamesMap2[id], "cantContinueGame")
+        if (lobbyNamesMap2[id]['state'] === 'started'/* && usersReadyMap2[id] < usersToStart*/) {
+          sendMessageToPlayersInLobby(lobbyNamesMap2[id], "cantContinueGame");
+          delete hunterSetForGameMap2[id];
+          hunterChangedCounterMap2 = {};
+          currentHunterMap2 = {};
+          // usersClickedReadyMap2[id] = {};
+          clearInterval(changeHunterIntervalMap2[id]);
+          delete changeHunterIntervalMap2[id];
           lobbyNamesMap2[id]['state'] = 'waiting';
         }
         sendPlayersInLobby(lobbyNamesMap2[id], (usersReadyMap2[id] >= usersToStart) ? true : false);
-        sendPlayersReadyInLobby(lobbyNamesMap2[id], usersClickedReadyMap2[id]);
+        sendPlayersReadyInLobby(lobbyNamesMap2[id], usersClickedReadyMap2[id], connection.id);
         break;
       }
     }

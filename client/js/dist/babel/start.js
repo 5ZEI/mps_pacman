@@ -13,6 +13,8 @@ var bootstrap = require('bootstrap');
 var $ = global.jQuery;
 var timeoutGame = void 0;
 var timeoutLoader = void 0;
+var gameTime = 180000;
+var startTime = 3000;
 
 // load the js file
 function loadScript() {
@@ -33,21 +35,29 @@ function IsJsonString(str) {
 function waitForUsers() {
   if (connected) {
     connection.onmessage = function (event) {
+      // if game is done, we clear the timeouts and go back to lobby screen
       if (event.data === "cantContinueGame") {
         clearTimeout(timeoutGame);
         clearTimeout(timeoutLoader);
         timeoutGame = null;
         timeoutLoader = null;
         if (document.getElementById("game").style.display !== 'none') {
+          document.getElementById("game").style.display = 'none';
           _toastr2.default.options.positionClass = 'toast-top-right';
-          _toastr2.default.error('Minimul de jucatori nu este implinit', 'Joc oprit!');
+          _toastr2.default.error('Unul din jucatori a parasit jocul', 'Joc oprit!');
         }
         document.getElementById("wait").innerHTML = "Waiting for players...";
         makeWaitingNice("Waiting for players...".length);
+        for (var i = 1; i < 8; i++) {
+          document.getElementById('optionalOp' + i).style.display = 'none';
+          document.getElementById('Op' + i).innerHTML = '';
+          document.getElementById('Op' + i + 'Score').innerHTML = '';
+        }
         document.getElementById("gameover").style.display = 'none';
         document.getElementById("lobby").style.display = 'initial';
       }
 
+      // if the player left, we notify him and change the lobby state
       if (event.data === "youLeft") {
         clearTimeout(timeoutGame);
         clearTimeout(timeoutLoader);
@@ -57,10 +67,18 @@ function waitForUsers() {
         _toastr2.default.success('Ai parasit lobby-ul', 'Notificare!');
         document.getElementById("wait").innerHTML = "Waiting for players...";
         document.getElementById("gameover").style.display = 'none';
+        for (var _i = 1; _i < 8; _i++) {
+          document.getElementById('optionalOp' + _i).style.display = 'none';
+          document.getElementById('Op' + _i).innerHTML = '';
+          document.getElementById('Op' + _i + 'Score').innerHTML = '';
+        }
         makeWaitingNice("Waiting for players...".length);
       }
 
-      if (event.data.split("#") > 2 && event.data.split('#')[1] === 'newLeader') {}
+      // if we got a message with the new leader, change him by calling the method defined in game.js
+      if (event.data.split("#").length > 1 && event.data.split('#')[0] === 'newLeader') {
+        (0, _game.changeLeader)(Number(event.data.split('#')[1]));
+      }
 
       if (IsJsonString(event.data)) {
         (function () {
@@ -75,34 +93,43 @@ function waitForUsers() {
               newDataForHunter = _JSON$parse.newDataForHunter,
               newDataForHunted = _JSON$parse.newDataForHunted,
               hunterId = _JSON$parse.hunterId,
-              huntedId = _JSON$parse.huntedId;
+              huntedId = _JSON$parse.huntedId,
+              usersReadyIds = _JSON$parse.usersReadyIds,
+              myConnection = _JSON$parse.myConnection;
 
           var count = 0;
           var sameName = 0;
 
+          // set those global variables
           if (ready !== undefined && usersPlaying !== undefined && yourId !== undefined) {
             readyState = ready;
-            usersJoined = usersPlaying;
+            usersJoined = usersPlaying.slice();
             myId = yourId;
           }
 
           if (usersReady !== undefined) {
-            usersReadyToPlay = usersReady;
+            usersReadyToPlay = usersReady.slice();
           }
 
+          // se the initial configuration gotten from the server
           if (usersInitialConfig !== undefined) {
             (0, _game.getInitialConfiguration)(usersInitialConfig);
           }
 
+          // set the new positions for each object gotten from the server
           if (newPosition !== undefined && newPositionId !== undefined) {
             (0, _game.getNewPositions)(newPosition, newPositionId);
           }
 
+          // if the hunter eats, set scores and respawn the eaten player.
           if (newDataForHunted !== undefined && newDataForHunter !== undefined && hunterId !== undefined && huntedId !== undefined) {
-            (0, _game.getNewScoresAndRespawn)(newDataForHunter, newDataForHunted, Number(hunterId), huntedId);
+            (0, _game.getNewScoresAndRespawn)(newDataForHunter, newDataForHunted, Number(hunterId), Number(huntedId));
           }
 
+          // set the lobby users (waiting... or names)
           if (usersPlaying) {
+            sameName = 0;
+            count = 0;
             usersPlaying.map(function (connectedUser) {
               if (connectedUser === user) {
                 sameName++;
@@ -121,22 +148,29 @@ function waitForUsers() {
               document.getElementById('opponent' + count).style.color = "#3cb0fd";
             }
 
+            // if there are enough users, show the ready button
             if (ready) {
               document.getElementById('startGame').style.display = "initial";
             } else {
               document.getElementById('startGame').style.display = "none";
             }
           }
-          if (usersReady) {
-            if (usersReady.indexOf(user) > -1) {
-              document.getElementById("yourPlayer").style.color = "#c7e825";
+          // change lobby colors for the users that clicked ready
+          if (usersReady && usersReadyIds && myConnection) {
+            var auxUsersReady = usersReady.slice();
+            if (usersReadyIds.indexOf(myConnection) > -1) {
+              if (auxUsersReady[usersReadyIds.indexOf(myConnection)]) {
+                document.getElementById("yourPlayer").style.color = "#c7e825";
+                auxUsersReady.splice(usersReadyIds.indexOf(myConnection), 1);
+              }
             } else {
               document.getElementById("yourPlayer").style.color = "yellow";
             }
-            for (var i = 1; i < 8; i++) {
-              var doc = document.getElementById('opponent' + i);
+            for (var _i2 = 1; _i2 < 8; _i2++) {
+              var doc = document.getElementById('opponent' + _i2);
               var player = doc.innerHTML;
-              if (usersReady.indexOf(player) > -1) {
+              if (auxUsersReady.indexOf(player) > -1) {
+                auxUsersReady.splice(auxUsersReady.indexOf(player), 1);
                 doc.style.color = "#66ff66";
               } else {
                 doc.style.color = "#3cb0fd";
@@ -155,28 +189,55 @@ function waitForUsers() {
                   document.getElementById("lobby").style.display = 'none';
                   document.getElementById("game").style.display = 'initial';
                   document.getElementById("wait").innerHTML = "Waiting for players...";
-                  var changedTimes = 0;
-                  var interval = setInterval(function () {
-                    changedTimes++;
-                    console.log(changedTimes);
-                    if (me.state === 'hunter') {
-                      connection.send("changeHero#me");
-                    } else for (var other in others) {
-                      if (others[other].state === 'hunter') {
-                        console.log('other');
-                        connection.send('changeHero#' + other);
-                        break;
+                  setTimeout(function () {
+                    sameName = 0;
+                    count = 0;
+                    var auxOthers = jQuery.extend(true, {}, others);
+                    usersReady.map(function (playingUser) {
+                      if (playingUser === user) {
+                        sameName++;
+                        if (sameName === 1) {
+                          document.getElementById('yourUser').innerHTML = playingUser;
+                          document.getElementById("yourUser").style.color = "yellow";
+                          document.getElementById("yourScore").style.color = "yellow";
+                          document.getElementById('yourScore').innerHTML = me.score;
+                        }
+                        if (sameName > 1) {
+                          count++;
+                          document.getElementById('optionalOp' + count).style.display = 'table-row';
+                          document.getElementById('Op' + count).innerHTML = playingUser;
+                          for (var otherPl in auxOthers) {
+                            if (auxOthers[otherPl].name === playingUser) {
+                              document.getElementById('Op' + count + 'Score').innerHTML = auxOthers[otherPl].score;
+                              delete auxOthers[otherPl];
+                              break;
+                            }
+                          }
+                        }
+                      } else {
+                        count++;
+                        document.getElementById('optionalOp' + count).style.display = 'table-row';
+                        document.getElementById('Op' + count).innerHTML = playingUser;
+                        for (var _otherPl in auxOthers) {
+                          if (auxOthers[_otherPl].name === playingUser) {
+                            document.getElementById('Op' + count + 'Score').innerHTML = auxOthers[_otherPl].score || 0;
+                            delete auxOthers[_otherPl];
+                            break;
+                          }
+                        }
                       }
+                    });
+                    while (count < 7) {
+                      count++;
+                      document.getElementById('optionalOp' + count).style.display = 'none';
+                      document.getElementById('Op' + count).style.display = 'none';
+                      document.getElementById('Op' + count + 'Score').style.display = 'none';
                     }
-                    if (changedTimes === 9) {
-                      clearInterval(interval);
-                      document.getElementById("game").style.display = 'none';
-                      document.getElementById("gameover").style.display = 'initial';
-                      connection.send("gameOver");
-                    }
-                    // DISPLAY SCORE
-                  }, 1500);
-                }, /*10000*/1000);
+                    document.getElementById("game").style.display = 'none';
+                    document.getElementById("gameover").style.display = 'initial';
+                    connection.send("gameOver");
+                  }, gameTime);
+                }, startTime);
               }
             }
           }
