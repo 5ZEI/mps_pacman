@@ -789,6 +789,8 @@ function renderObject() {
 				me: me }));
 			me.x -= directions.xs;
 			me.y -= directions.ys;
+			// better for heroku server! LATENCY TO BIG
+			// direction = 'none';
 		}
 		// in case we want to block players on collision
 		// else if (colideWithPlayer(me, others[opponent], precision*2)) {

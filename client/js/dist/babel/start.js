@@ -13,6 +13,7 @@ var bootstrap = require('bootstrap');
 var $ = global.jQuery;
 var timeoutGame = void 0;
 var timeoutLoader = void 0;
+var timeoutGameEnded = void 0;
 var gameTime = 180000;
 var startTime = 3000;
 
@@ -38,9 +39,11 @@ function waitForUsers() {
       // if game is done, we clear the timeouts and go back to lobby screen
       if (event.data === "cantContinueGame") {
         clearTimeout(timeoutGame);
+        clearTimeout(timeoutGameEnded);
         clearTimeout(timeoutLoader);
         timeoutGame = null;
         timeoutLoader = null;
+        timeoutGameEnded = null;
         if (document.getElementById("game").style.display !== 'none') {
           document.getElementById("game").style.display = 'none';
           _toastr2.default.options.positionClass = 'toast-top-right';
@@ -61,8 +64,10 @@ function waitForUsers() {
       if (event.data === "youLeft") {
         clearTimeout(timeoutGame);
         clearTimeout(timeoutLoader);
+        clearTimeout(timeoutGameEnded);
         timeoutGame = null;
         timeoutLoader = null;
+        timeoutGameEnded = null;
         _toastr2.default.options.positionClass = 'toast-top-right';
         _toastr2.default.success('Ai parasit lobby-ul', 'Notificare!');
         document.getElementById("wait").innerHTML = "Waiting for players...";
@@ -189,54 +194,56 @@ function waitForUsers() {
                   document.getElementById("lobby").style.display = 'none';
                   document.getElementById("game").style.display = 'initial';
                   document.getElementById("wait").innerHTML = "Waiting for players...";
-                  setTimeout(function () {
-                    sameName = 0;
-                    count = 0;
-                    var auxOthers = jQuery.extend(true, {}, others);
-                    usersReady.map(function (playingUser) {
-                      if (playingUser === user) {
-                        sameName++;
-                        if (sameName === 1) {
-                          document.getElementById('yourUser').innerHTML = playingUser;
-                          document.getElementById("yourUser").style.color = "yellow";
-                          document.getElementById("yourScore").style.color = "yellow";
-                          document.getElementById('yourScore').innerHTML = me.score;
-                        }
-                        if (sameName > 1) {
+                  if (!timeoutGameEnded) {
+                    timeoutGameEnded = setTimeout(function () {
+                      sameName = 0;
+                      count = 0;
+                      var auxOthers = jQuery.extend(true, {}, others);
+                      usersReady.map(function (playingUser) {
+                        if (playingUser === user) {
+                          sameName++;
+                          if (sameName === 1) {
+                            document.getElementById('yourUser').innerHTML = playingUser;
+                            document.getElementById("yourUser").style.color = "yellow";
+                            document.getElementById("yourScore").style.color = "yellow";
+                            document.getElementById('yourScore').innerHTML = me.score;
+                          }
+                          if (sameName > 1) {
+                            count++;
+                            document.getElementById('optionalOp' + count).style.display = 'table-row';
+                            document.getElementById('Op' + count).innerHTML = playingUser;
+                            for (var otherPl in auxOthers) {
+                              if (auxOthers[otherPl].name === playingUser) {
+                                document.getElementById('Op' + count + 'Score').innerHTML = auxOthers[otherPl].score;
+                                delete auxOthers[otherPl];
+                                break;
+                              }
+                            }
+                          }
+                        } else {
                           count++;
                           document.getElementById('optionalOp' + count).style.display = 'table-row';
                           document.getElementById('Op' + count).innerHTML = playingUser;
-                          for (var otherPl in auxOthers) {
-                            if (auxOthers[otherPl].name === playingUser) {
-                              document.getElementById('Op' + count + 'Score').innerHTML = auxOthers[otherPl].score;
-                              delete auxOthers[otherPl];
+                          for (var _otherPl in auxOthers) {
+                            if (auxOthers[_otherPl].name === playingUser) {
+                              document.getElementById('Op' + count + 'Score').innerHTML = auxOthers[_otherPl].score || 0;
+                              delete auxOthers[_otherPl];
                               break;
                             }
                           }
                         }
-                      } else {
+                      });
+                      while (count < 7) {
                         count++;
-                        document.getElementById('optionalOp' + count).style.display = 'table-row';
-                        document.getElementById('Op' + count).innerHTML = playingUser;
-                        for (var _otherPl in auxOthers) {
-                          if (auxOthers[_otherPl].name === playingUser) {
-                            document.getElementById('Op' + count + 'Score').innerHTML = auxOthers[_otherPl].score || 0;
-                            delete auxOthers[_otherPl];
-                            break;
-                          }
-                        }
+                        document.getElementById('optionalOp' + count).style.display = 'none';
+                        document.getElementById('Op' + count).style.display = 'none';
+                        document.getElementById('Op' + count + 'Score').style.display = 'none';
                       }
-                    });
-                    while (count < 7) {
-                      count++;
-                      document.getElementById('optionalOp' + count).style.display = 'none';
-                      document.getElementById('Op' + count).style.display = 'none';
-                      document.getElementById('Op' + count + 'Score').style.display = 'none';
-                    }
-                    document.getElementById("game").style.display = 'none';
-                    document.getElementById("gameover").style.display = 'initial';
-                    connection.send("gameOver");
-                  }, gameTime);
+                      document.getElementById("game").style.display = 'none';
+                      document.getElementById("gameover").style.display = 'initial';
+                      connection.send("gameOver");
+                    }, gameTime);
+                  }
                 }, startTime);
               }
             }
