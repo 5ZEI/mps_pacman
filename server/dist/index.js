@@ -63,9 +63,9 @@ app.use(function (req, res, next) {
 
 // get the index route (the only one).
 app.get('/', function (req, res, next) {
-  console.log();
-  console.log('[REQ] Client is accessing route: ', req.url);
-  console.log("========================================================");
+  // console.log();
+  // console.log('[REQ] Client is accessing route: ', req.url);
+  // console.log("========================================================");
   res.sendFile(_path2.default.join(htmlPaths + 'index.html'));
 });
 
@@ -158,11 +158,11 @@ function sendMessageToPlayersInLobby(lobby, message) {
 
   for (var id in lobby) {
     if (id !== 'state') {
-      console.log("SENDING TO: ", id, " DATA: ", message);
+      // console.log("SENDING TO: ", id, " DATA: ", message);
       sendToConnectionId(id, message);
     }
   }
-  console.log("=================================");
+  // console.log("=================================");
 }
 
 // sends the players that clicked the ready button to all of the players in the lobby
@@ -277,7 +277,7 @@ wss.on('request', function (request) {
             if (!hunterSetForGameMap1[id]) {
               hunterSetForGameMap1[id] = {};
             }
-            console.log('sending player init positions , hunter: ', hunterSetForGameMap1, 'lobbyid: ', id);
+            // console.log('sending player init positions , hunter: ', hunterSetForGameMap1, 'lobbyid: ', id );
             if (!hunterSetForGameMap1[id][hunterChangedCounterMap1[id]]) {
               hunterSetForGameMap1[id][hunterChangedCounterMap1[id]] = true;
               changeHunterIntervalMap1[id] = setInterval(function () {
@@ -666,9 +666,9 @@ wss.on('request', function (request) {
         }
       }
     } else if (message.type === 'binary') {
-      console.log();
-      console.log('[RECV] Received Binary Message of ' + message.binaryData.length + ' bytes');
-      console.log("========================================================");
+      // console.log();
+      // console.log('[RECV] Received Binary Message of ' + message.binaryData.length + ' bytes');
+      // console.log("========================================================");
       connection.sendBytes(message.binaryData);
     }
   });
@@ -733,8 +733,8 @@ wss.on('request', function (request) {
   });
 });
 
-// open port 3000 for listening
-server.listen(3000, function () {
-  console.log('[LISTEN] ' + new Date() + 'Server is listening on port 3000');
+// open port 8080 for listening
+server.listen(process.env.PORT || 8080, function () {
+  console.log('[LISTEN] ' + new Date() + 'Server is listening on port 8080');
   console.log("========================================================");
 });

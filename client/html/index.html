@@ -9,7 +9,8 @@
 
 		<script>
 			var connected = false;
-			var connection = new WebSocket("ws://localhost:3000");
+			var HOST = location.origin.replace(/^http/, 'ws')
+			var connection = new WebSocket(HOST);
 			// usersJoined => users in your lobby
 			// usersReadyToPlay => users that pressed the ready button
 			// readyState => if the game is ready to start
