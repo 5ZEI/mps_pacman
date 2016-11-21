@@ -766,7 +766,7 @@ function renderObject(){
 		me.y -= directions.ys;
 	}
 	if (connected) {
-		connection.send(JSON.stringify({myNewPosition: {x: me.x, y: me.y}}));
+		connection.send(JSON.stringify({myNewPosition: {x: me.x, y: me.y, state: me.state}}));
 	}
 	for (let opponent in others) {
 		if ((others[opponent].state === 'hunter') && (colideWithHero(me, others[opponent], precision*2))){
@@ -782,11 +782,12 @@ function renderObject(){
 			me.x -= directions.xs;
 			me.y -= directions.ys;
 		}
-		else if (colideWithPlayer(me, others[opponent], precision*2)) {
-			me.x -= directions.xs;
-			me.y -= directions.ys;
-			direction = 'none';
-		}
+		// in case we want to block players on collision
+		// else if (colideWithPlayer(me, others[opponent], precision*2)) {
+		// 	me.x -= directions.xs;
+		// 	me.y -= directions.ys;
+		// 	direction = 'none';
+		// }
 	}
 
 	const myImage = new Image();
@@ -795,11 +796,12 @@ function renderObject(){
 		ctx.drawImage(myImage, me.x, me.y);
 	}
 
+	let opImage = {};
 	for (let opponent in others) {
-		const opImage = new Image();
-		opImage.src = others[opponent].state === 'hunter' ? '../images/hero.jpg' : '../images/pac.jpg';
-		opImage.onload = function() {
-			ctx.drawImage(opImage, others[opponent].x, others[opponent].y);
+		opImage[opponent] = new Image();
+		opImage[opponent].src = others[opponent].state === 'hunter' ? '../images/hero.jpg' : '../images/pac.jpg';
+		opImage[opponent].onload = function() {
+			ctx.drawImage(opImage[opponent], others[opponent].x, others[opponent].y);
 		}
 	}
 
@@ -814,20 +816,19 @@ export const changeLeader = (newLeaderId) => {
 	}
 	else for (let other in others) {
 	  if (others[other].state === 'hunter') {
-	   others[other].state === 'hunted';
+	   others[other].state = 'hunted';
 	   break;
 	  }
 	}
-	if (newLeaderId === myId) {
+	if (newLeaderId === Number(myId)) {
 		me.state = 'hunter';
 	}
   for (let other in others) {
-    if (other === newLeaderId) {
-	  	others[other].state === 'hunter';
+    if (Number(other) === newLeaderId) {
+	  	others[other].state = 'hunter';
 	    break;
     }
   }
-
 }
 
 export const getNewPositions = (newPosition, newPositionId) => {

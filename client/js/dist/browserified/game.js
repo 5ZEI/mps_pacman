@@ -775,7 +775,7 @@ function renderObject() {
 		me.y -= directions.ys;
 	}
 	if (connected) {
-		connection.send(JSON.stringify({ myNewPosition: { x: me.x, y: me.y } }));
+		connection.send(JSON.stringify({ myNewPosition: { x: me.x, y: me.y, state: me.state } }));
 	}
 	for (var opponent in others) {
 		if (others[opponent].state === 'hunter' && colideWithHero(me, others[opponent], precision * 2)) {
@@ -789,11 +789,13 @@ function renderObject() {
 				me: me }));
 			me.x -= directions.xs;
 			me.y -= directions.ys;
-		} else if (colideWithPlayer(me, others[opponent], precision * 2)) {
-			me.x -= directions.xs;
-			me.y -= directions.ys;
-			direction = 'none';
 		}
+		// in case we want to block players on collision
+		// else if (colideWithPlayer(me, others[opponent], precision*2)) {
+		// 	me.x -= directions.xs;
+		// 	me.y -= directions.ys;
+		// 	direction = 'none';
+		// }
 	}
 
 	var myImage = new Image();
@@ -802,11 +804,13 @@ function renderObject() {
 		ctx.drawImage(myImage, me.x, me.y);
 	};
 
+	var opImage = {};
+
 	var _loop = function _loop(_opponent) {
-		var opImage = new Image();
-		opImage.src = others[_opponent].state === 'hunter' ? '../images/hero.jpg' : '../images/pac.jpg';
-		opImage.onload = function () {
-			ctx.drawImage(opImage, others[_opponent].x, others[_opponent].y);
+		opImage[_opponent] = new Image();
+		opImage[_opponent].src = others[_opponent].state === 'hunter' ? '../images/hero.jpg' : '../images/pac.jpg';
+		opImage[_opponent].onload = function () {
+			ctx.drawImage(opImage[_opponent], others[_opponent].x, others[_opponent].y);
 		};
 	};
 
@@ -824,16 +828,16 @@ var changeLeader = exports.changeLeader = function changeLeader(newLeaderId) {
 		me.state = 'hunted';
 	} else for (var other in others) {
 		if (others[other].state === 'hunter') {
-			others[other].state === 'hunted';
+			others[other].state = 'hunted';
 			break;
 		}
 	}
-	if (newLeaderId === myId) {
+	if (newLeaderId === Number(myId)) {
 		me.state = 'hunter';
 	}
 	for (var _other in others) {
-		if (_other === newLeaderId) {
-			others[_other].state === 'hunter';
+		if (Number(_other) === newLeaderId) {
+			others[_other].state = 'hunter';
 			break;
 		}
 	}
